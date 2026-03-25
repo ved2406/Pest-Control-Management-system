@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PestPro - Pest Management System</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">&#9878;</span>
+                <span class="logo-text">PestPro</span>
+            </div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">&#9632;</span> Dashboard
+            </li>
+            <li class="nav-item" data-page="bookings">
+                <span class="nav-icon">&#128197;</span> Bookings
+            </li>
+            <li class="nav-item" data-page="customers">
+                <span class="nav-icon">&#128101;</span> Customers
+            </li>
+            <li class="nav-item" data-page="technicians">
+                <span class="nav-icon">&#128736;</span> Technicians
+            </li>
+            <li class="nav-item" data-page="pests">
+                <span class="nav-icon">&#128027;</span> Pest Types
+            </li>
+            <li class="nav-item" data-page="treatments">
+                <span class="nav-icon">&#9883;</span> Treatments
+            </li>
+            <li class="nav-item" data-page="reports">
+                <span class="nav-icon">&#128196;</span> Reports
+            </li>
+            <li class="nav-item" data-page="search">
+                <span class="nav-icon">&#128269;</span> Search
+            </li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" id="menuToggle">&#9776;</button>
+            <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            <div class="top-bar-search">
+                <input type="text" id="globalSearch" placeholder="Quick search..." />
+            </div>
+        </header>
+
+        <div class="content" id="content">
+            <!-- Dynamic content loaded here -->
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Title</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

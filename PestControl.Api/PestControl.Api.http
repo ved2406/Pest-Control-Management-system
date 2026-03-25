@@ -1,0 +1,6 @@
+@PestControl.Api_HostAddress = http://localhost:5073
+
+GET {{PestControl.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
