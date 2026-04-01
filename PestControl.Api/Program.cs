@@ -17,6 +17,16 @@ builder.Services.AddSingleton<IInspectionReportRepository>(new SqlInspectionRepo
 
 // Register services
 builder.Services.AddSingleton<SearchService>();
+builder.Services.AddSingleton<PestControlAgent>(sp =>
+    new PestControlAgent(
+        sp.GetRequiredService<ICustomerRepository>(),
+        sp.GetRequiredService<IPestTypeRepository>(),
+        sp.GetRequiredService<IBookingRepository>(),
+        sp.GetRequiredService<ITechnicianRepository>(),
+        sp.GetRequiredService<ITreatmentRepository>(),
+        sp.GetRequiredService<IInspectionReportRepository>(),
+        "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"
+    ));
 
 builder.Services.AddControllers();
 

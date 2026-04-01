@@ -460,3 +460,149 @@ public sealed class BinarySearchTreeTests
         Assert.AreEqual(1, _tree.Count());
     }
 }
+
+[TestClass]
+public sealed class PestControlAgentTests
+{
+    private PestControlAgent _agent;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        _agent = new PestControlAgent(
+            new StaticCustomerRepository(),
+            new StaticPestTypeRepository(),
+            new StaticBookingRepository(),
+            new StaticTechnicianRepository(),
+            new StaticTreatmentRepository(),
+            new StaticInspectionReportRepository()
+        );
+    }
+
+    [TestMethod]
+    public void GetArms_ReturnsSevenArms()
+    {
+        var arms = _agent.GetArms();
+        Assert.AreEqual(7, arms.Count);
+    }
+
+    [TestMethod]
+    public void Process_EmptyMessage_ReturnsGreeting()
+    {
+        var response = _agent.Process("");
+        Assert.AreEqual("general", response.Arm);
+        Assert.IsTrue(response.Message.Contains("PestPro AI Assistant"));
+    }
+
+    [TestMethod]
+    public void Process_HelloGreeting_ReturnsCapabilities()
+    {
+        var response = _agent.Process("hello");
+        Assert.AreEqual("general", response.Arm);
+        Assert.IsTrue(response.Message.Contains("Search for customers"));
+    }
+
+    [TestMethod]
+    public void Process_FindCustomer_UsesCustomerArm()
+    {
+        var response = _agent.Process("find customer John");
+        Assert.AreEqual("CustomerSearch", response.Arm);
+        Assert.IsTrue(response.Message.Contains("John") || response.Message.Contains("customer"));
+    }
+
+    [TestMethod]
+    public void Process_CustomerSearch_AllCustomers()
+    {
+        var response = _agent.Process("show me all customers");
+        Assert.AreEqual("CustomerSearch", response.Arm);
+        Assert.IsTrue(response.Message.Contains("customer"));
+    }
+
+    [TestMethod]
+    public void Process_TechnicianAvailability_UsesCorrectArm()
+    {
+        var response = _agent.Process("show available technicians");
+        Assert.AreEqual("TechnicianAvailability", response.Arm);
+        Assert.IsTrue(response.Message.Contains("available") || response.Message.Contains("technician"));
+    }
+
+    [TestMethod]
+    public void Process_TreatmentRecommendation_UsesCorrectArm()
+    {
+        var response = _agent.Process("recommend treatment for pests");
+        Assert.AreEqual("TreatmentRecommendation", response.Arm);
+        Assert.IsTrue(response.Message.Contains("treatment") || response.Message.Contains("Treatment"));
+    }
+
+    [TestMethod]
+    public void Process_BookingLookup_PendingBookings()
+    {
+        var response = _agent.Process("show pending bookings");
+        Assert.AreEqual("BookingLookup", response.Arm);
+    }
+
+    [TestMethod]
+    public void Process_BookingLookup_UpcomingBookings()
+    {
+        var response = _agent.Process("show upcoming appointments");
+        Assert.AreEqual("BookingLookup", response.Arm);
+    }
+
+    [TestMethod]
+    public void Process_PestInfo_UsesCorrectArm()
+    {
+        var response = _agent.Process("tell me about rodents");
+        Assert.AreEqual("PestInfo", response.Arm);
+    }
+
+    [TestMethod]
+    public void Process_ReportSummary_UsesCorrectArm()
+    {
+        var response = _agent.Process("show inspection reports");
+        Assert.AreEqual("ReportSummary", response.Arm);
+    }
+
+    [TestMethod]
+    public void Process_FollowUpReports_FiltersCorrectly()
+    {
+        var response = _agent.Process("which reports need follow-up?");
+        Assert.AreEqual("ReportSummary", response.Arm);
+        Assert.IsTrue(response.Message.Contains("follow-up") || response.Message.Contains("report"));
+    }
+
+    [TestMethod]
+    public void Process_DashboardStats_UsesCorrectArm()
+    {
+        var response = _agent.Process("how many bookings do we have?");
+        Assert.AreEqual("DashboardStats", response.Arm);
+        Assert.IsTrue(response.Message.Contains("Bookings") || response.Message.Contains("booking"));
+    }
+
+    [TestMethod]
+    public void Process_SystemOverview_ReturnsStats()
+    {
+        var response = _agent.Process("show me the dashboard stats");
+        Assert.AreEqual("DashboardStats", response.Arm);
+        Assert.IsTrue(response.Message.Contains("Customers"));
+        Assert.IsTrue(response.Message.Contains("Technicians"));
+    }
+
+    [TestMethod]
+    public void Process_UnknownMessage_ReturnsFallback()
+    {
+        var response = _agent.Process("xyzzy gibberish nothing");
+        Assert.AreEqual("general", response.Arm);
+        Assert.IsTrue(response.Message.Contains("not sure"));
+    }
+
+    [TestMethod]
+    public void EachArm_HasNameAndDescription()
+    {
+        foreach (var arm in _agent.GetArms())
+        {
+            Assert.IsFalse(string.IsNullOrWhiteSpace(arm.Name), "Arm name should not be empty");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(arm.Description), "Arm description should not be empty");
+            Assert.IsTrue(arm.TriggerKeywords.Length > 0, "Arm should have at least one trigger keyword");
+        }
+    }
+}

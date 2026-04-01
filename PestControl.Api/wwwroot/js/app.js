@@ -384,33 +384,105 @@ async function deleteCustomer(id) {
 
 // === Technicians ===
 function renderTechnicians() {
-    let html = '<div class="section-card"><div class="section-header"><h2>All Technicians</h2></div>';
-    html += '<div class="table-wrapper"><table><thead><tr>';
-    html += '<th>ID</th><th>Name</th><th>Specialisation</th><th>Phone</th><th>Email</th><th>Status</th>';
+    let html = '<div class="section-card"><div class="section-header"><h2>All Technicians</h2>';
+    html += '<button class="btn btn-primary" onclick="openNewTechnicianModal()">+ New Technician</button>';
+    html += '</div><div class="table-wrapper"><table><thead><tr>';
+    html += '<th>ID</th><th>Name</th><th>Specialisation</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     technicians.forEach(t => {
         html += '<tr><td>#' + t.id + '</td><td>' + t.name + '</td><td>' + t.specialisation + '</td>';
         html += '<td>' + t.phone + '</td><td>' + t.email + '</td>';
         html += '<td>' + (t.available ? '<span class="badge badge-available">Available</span>' : '<span class="badge badge-unavailable">Unavailable</span>') + '</td>';
+        html += '<td><button class="btn btn-danger btn-sm" onclick="deleteTechnician(' + t.id + ')">Delete</button></td>';
         html += '</tr>';
     });
     html += '</tbody></table></div></div>';
     return html;
 }
 
+function openNewTechnicianModal() {
+    let html = '<form id="newTechForm">';
+    html += formInput('Name', 'tName', 'text');
+    html += formInput('Specialisation', 'tSpec', 'text');
+    html += '<div class="form-row">';
+    html += formInput('Phone', 'tPhone', 'tel');
+    html += formInput('Email', 'tEmail', 'email');
+    html += '</div>';
+    html += formSelect('Available', 'tAvailable', '<option value="true">Available</option><option value="false">Unavailable</option>');
+    html += '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">Add Technician</button>';
+    html += '</form>';
+
+    openModal('New Technician', html);
+    document.getElementById('newTechForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            id: 0,
+            name: document.getElementById('tName').value,
+            specialisation: document.getElementById('tSpec').value,
+            phone: document.getElementById('tPhone').value,
+            email: document.getElementById('tEmail').value,
+            available: document.getElementById('tAvailable').value === 'true'
+        };
+        await postJson('/api/technicians', data);
+        closeModal();
+        loadPage('technicians');
+    });
+}
+
+async function deleteTechnician(id) {
+    if (!confirm('Delete technician #' + id + '?')) return;
+    await deleteReq('/api/technicians/' + id);
+    loadPage('technicians');
+}
+
 // === Pest Types ===
 function renderPests() {
-    let html = '<div class="section-card"><div class="section-header"><h2>All Pest Types</h2></div>';
-    html += '<div class="table-wrapper"><table><thead><tr>';
-    html += '<th>ID</th><th>Name</th><th>Category</th><th>Description</th><th>Risk</th>';
+    let html = '<div class="section-card"><div class="section-header"><h2>All Pest Types</h2>';
+    html += '<button class="btn btn-primary" onclick="openNewPestModal()">+ New Pest Type</button>';
+    html += '</div><div class="table-wrapper"><table><thead><tr>';
+    html += '<th>ID</th><th>Name</th><th>Category</th><th>Description</th><th>Risk</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     pestTypes.forEach(p => {
         html += '<tr><td>#' + p.id + '</td><td>' + p.name + '</td><td>' + p.category + '</td>';
         html += '<td>' + p.description + '</td>';
-        html += '<td>' + riskBadge(p.riskLevel) + '</td></tr>';
+        html += '<td>' + riskBadge(p.riskLevel) + '</td>';
+        html += '<td><button class="btn btn-danger btn-sm" onclick="deletePest(' + p.id + ')">Delete</button></td></tr>';
     });
     html += '</tbody></table></div></div>';
     return html;
+}
+
+function openNewPestModal() {
+    let html = '<form id="newPestForm">';
+    html += formInput('Name', 'pName', 'text');
+    html += '<div class="form-row">';
+    html += formSelect('Category', 'pCategory', '<option>Insects</option><option>Rodents</option><option>Birds</option><option>Wildlife</option><option>Other</option>');
+    html += formSelect('Risk Level', 'pRisk', '<option>Low</option><option>Medium</option><option>High</option>');
+    html += '</div>';
+    html += formTextarea('Description', 'pDesc');
+    html += '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">Add Pest Type</button>';
+    html += '</form>';
+
+    openModal('New Pest Type', html);
+    document.getElementById('newPestForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            id: 0,
+            name: document.getElementById('pName').value,
+            category: document.getElementById('pCategory').value,
+            description: document.getElementById('pDesc').value,
+            riskLevel: document.getElementById('pRisk').value
+        };
+        await postJson('/api/pesttypes', data);
+        closeModal();
+        loadPage('pests');
+    });
+}
+
+async function deletePest(id) {
+    if (!confirm('Delete pest type #' + id + '?')) return;
+    await deleteReq('/api/pesttypes/' + id);
+    loadPage('pests');
 }
 
 // === Treatments ===
@@ -492,7 +564,7 @@ async function performSearch(query) {
     }
     let html = '';
     data.forEach(r => {
-        html += '<div class="search-result-item">';
+        html += '<div class="search-result-item" style="cursor:pointer;" onclick="openSearchResult(\'' + r.category + '\',' + r.id + ')">';
         html += '<span class="search-result-category">' + r.category + '</span>';
         html += '<div class="search-result-info">';
         html += '<div class="search-result-title">' + r.title + '</div>';
@@ -518,3 +590,171 @@ function formTextarea(label, id) {
 function detailRow(label, value) {
     return '<div class="detail-label">' + label + '</div><div class="detail-value">' + value + '</div>';
 }
+
+// === Search Result Click Handler ===
+function openSearchResult(category, id) {
+    switch (category) {
+        case 'Customer':
+            loadAllData().then(() => viewCustomer(id));
+            break;
+        case 'Booking':
+            loadAllData().then(() => viewBooking(id));
+            break;
+        case 'Technician':
+            loadAllData().then(() => viewTechnician(id));
+            break;
+        case 'Pest Type':
+            loadAllData().then(() => viewPest(id));
+            break;
+        case 'Treatment':
+            loadAllData().then(() => viewTreatment(id));
+            break;
+        case 'Inspection Report':
+            loadAllData().then(() => viewReport(id));
+            break;
+    }
+}
+
+function viewTechnician(id) {
+    const t = technicians.find(x => x.id === id);
+    if (!t) return;
+    const techBookings = bookings.filter(b => b.technicianId === id);
+    let html = '<div class="detail-grid">';
+    html += detailRow('Name', t.name);
+    html += detailRow('Specialisation', t.specialisation);
+    html += detailRow('Phone', t.phone);
+    html += detailRow('Email', t.email);
+    html += detailRow('Status', t.available ? '<span class="badge badge-available">Available</span>' : '<span class="badge badge-unavailable">Unavailable</span>');
+    html += detailRow('Assigned Bookings', techBookings.length.toString());
+    html += '</div>';
+    if (techBookings.length > 0) {
+        html += '<h3 style="margin-top:16px;margin-bottom:8px;font-size:0.95rem;">Assigned Bookings</h3>';
+        html += '<table><thead><tr><th>Date</th><th>Customer</th><th>Pest</th><th>Status</th></tr></thead><tbody>';
+        techBookings.forEach(b => {
+            html += '<tr><td>' + b.date + '</td><td>' + getCustomerName(b.customerId) + '</td><td>' + getPestName(b.pestTypeId) + '</td><td>' + statusBadge(b.status) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+    }
+    openModal(t.name, html);
+}
+
+function viewPest(id) {
+    const p = pestTypes.find(x => x.id === id);
+    if (!p) return;
+    const pestTreatments = treatments.filter(t => t.targetPestTypeId === id);
+    let html = '<div class="detail-grid">';
+    html += detailRow('Name', p.name);
+    html += detailRow('Category', p.category);
+    html += detailRow('Risk Level', riskBadge(p.riskLevel));
+    html += detailRow('Description', p.description);
+    html += '</div>';
+    if (pestTreatments.length > 0) {
+        html += '<h3 style="margin-top:16px;margin-bottom:8px;font-size:0.95rem;">Available Treatments</h3>';
+        html += '<table><thead><tr><th>Product</th><th>Method</th><th>Safety</th></tr></thead><tbody>';
+        pestTreatments.forEach(t => {
+            html += '<tr><td>' + t.productName + '</td><td>' + t.method + '</td><td>' + (t.safetyInfo.length > 40 ? t.safetyInfo.substring(0, 40) + '...' : t.safetyInfo) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+    }
+    openModal(p.name, html);
+}
+
+function viewTreatment(id) {
+    const t = treatments.find(x => x.id === id);
+    if (!t) return;
+    let html = '<div class="detail-grid">';
+    html += detailRow('Product', t.productName);
+    html += detailRow('Method', t.method);
+    html += detailRow('Target Pest', getPestName(t.targetPestTypeId));
+    html += detailRow('Safety Info', t.safetyInfo);
+    html += '</div>';
+    openModal(t.productName, html);
+}
+
+// === AI Agent Chat Widget ===
+(function() {
+    const fab = document.getElementById('chatFab');
+    const widget = document.getElementById('chatWidget');
+    const closeBtn = document.getElementById('chatClose');
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSend');
+    const messages = document.getElementById('chatMessages');
+
+    if (!fab || !widget) return;
+
+    fab.addEventListener('click', () => {
+        fab.classList.add('hidden');
+        widget.classList.add('open');
+        input.focus();
+    });
+
+    closeBtn.addEventListener('click', () => {
+        widget.classList.remove('open');
+        fab.classList.remove('hidden');
+    });
+
+    function addMessage(text, sender, armName) {
+        const div = document.createElement('div');
+        div.className = 'chat-msg ' + sender;
+        let html = '<div class="chat-msg-bubble">' + escapeHtml(text) + '</div>';
+        if (armName && armName !== 'general') {
+            html += '<div class="chat-msg-arm">' + armName + '</div>';
+        }
+        div.innerHTML = html;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+        const div = document.createElement('div');
+        div.className = 'chat-typing';
+        div.id = 'chatTyping';
+        div.innerHTML = '<span></span><span></span><span></span>';
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const el = document.getElementById('chatTyping');
+        if (el) el.remove();
+    }
+
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text) return;
+
+        addMessage(text, 'user');
+        input.value = '';
+        addTypingIndicator();
+
+        try {
+            const res = await fetch('/api/agent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+            removeTypingIndicator();
+
+            if (res.ok) {
+                const data = await res.json();
+                addMessage(data.message, 'bot', data.arm);
+            } else {
+                addMessage('Sorry, something went wrong. Please try again.', 'bot');
+            }
+        } catch (err) {
+            removeTypingIndicator();
+            addMessage('Unable to reach the server. Is the API running?', 'bot');
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+})();
