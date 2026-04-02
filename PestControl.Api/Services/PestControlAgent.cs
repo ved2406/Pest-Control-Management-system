@@ -11,27 +11,32 @@ using System.Threading.Tasks;
 namespace PestControl.Api.Services
 {
     /// <summary>
-    /// AI Agent with multiple "arms" (capabilities).
-    /// Each arm can READ data or WRITE data (create/delete) via SQL repositories.
-    /// The agent uses keyword-weighted intent matching to select the best arm,
-    /// gathers context, calls the Claude API, and executes actions when needed.
+    /// PestControlAgent is the AI brain of the system.
+    /// It has 7 "arms" — each arm is a specialist in one area (customers, bookings, pests, etc).
+    /// When a user types a message, the agent:
+    ///   1. Reads the message and scores every arm using keyword matching
+    ///   2. Picks the arm with the highest score (most relevant to the message)
+    ///   3. That arm fetches real data from the SQL database
+    ///   4. The data + user message are sent to Claude AI (Anthropic API)
+    ///   5. Claude reads the real data and writes a helpful natural language reply
     ///
-    /// Architecture:
-    ///   1. User message arrives
-    ///   2. Keyword-weighted intent matching selects the best arm
-    ///   3. If the arm is an ACTION arm, Claude extracts structured data as JSON
-    ///   4. The agent parses the JSON and executes the repository write
-    ///   5. Claude generates a natural confirmation or data response
-    ///
-    /// Algorithm: keyword-weighted intent matching
-    ///   Time complexity: O(A * K * W) where A = arms, K = keywords per arm, W = words in input
+    /// Algorithm used: Keyword-Weighted Intent Matching
+    ///   - Multi-word keywords score higher than single words
+    ///   - e.g. "find customer" scores 2 points, "customer" scores 1 point
+    ///   - Time complexity: O(A * K) where A = number of arms, K = keywords per arm
     /// </summary>
     public class PestControlAgent
     {
+        // The list of all arms (capabilities) this agent has
         private readonly List<AgentArm> _arms = new List<AgentArm>();
+
+        // HttpClient is used to make HTTP requests to the Claude API
         private readonly HttpClient _httpClient;
+
+        // The Claude API key used to authenticate our requests to Anthropic
         private readonly string _apiKey;
 
+        // These are the 6 repository interfaces — each one talks to a different SQL table
         private readonly ICustomerRepository _customers;
         private readonly IPestTypeRepository _pestTypes;
         private readonly IBookingRepository _bookings;
@@ -39,6 +44,10 @@ namespace PestControl.Api.Services
         private readonly ITreatmentRepository _treatments;
         private readonly IInspectionReportRepository _reports;
 
+        /// <summary>
+        /// Constructor — called once when the app starts (via Program.cs dependency injection).
+        /// Stores all 6 repositories, sets up the Claude API connection, and registers all 7 arms.
+        /// </summary>
         public PestControlAgent(
             ICustomerRepository customers,
             IPestTypeRepository pestTypes,
@@ -48,6 +57,7 @@ namespace PestControl.Api.Services
             IInspectionReportRepository reports,
             string apiKey)
         {
+            // Store each repository so arms can use them later to fetch data
             _customers = customers;
             _pestTypes = pestTypes;
             _bookings = bookings;
@@ -56,66 +66,37 @@ namespace PestControl.Api.Services
             _reports = reports;
             _apiKey = apiKey;
 
+            // Set up the HTTP client with the Claude API authentication headers
+            // Every request to Claude must include these two headers
             _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
-            _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+            _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);           // Our API key
+            _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01"); // API version
 
+            // Register all 7 arms so the agent knows what it can do
             RegisterArms();
         }
 
+        /// <summary>
+        /// RegisterArms creates all 7 arms and adds them to the _arms list.
+        /// Each arm has:
+        ///   - A name (used to identify which arm was chosen)
+        ///   - A description (explains what this arm does)
+        ///   - Trigger keywords (words in the user's message that activate this arm)
+        ///   - An Execute function (fetches the relevant data from the database)
+        /// </summary>
         private void RegisterArms()
         {
-            // === ACTION ARMS (create/write) — registered first so they get priority ===
-
-            // Arm: Create booking
-            _arms.Add(new AgentArm(
-                "CreateBooking",
-                "Create a new pest control booking",
-                new[] { "create booking", "new booking", "book appointment", "book a", "schedule appointment", "make booking", "add booking", "create a booking", "assign technician", "book for" },
-                input => GatherCreateBookingContext(input)
-            ));
-
-            // Arm: Add customer
-            _arms.Add(new AgentArm(
-                "AddCustomer",
-                "Add a new customer to the system",
-                new[] { "add customer", "new customer", "create customer", "register customer", "add client", "new client" },
-                input => GatherAddCustomerContext(input)
-            ));
-
-            // Arm: Add technician
-            _arms.Add(new AgentArm(
-                "AddTechnician",
-                "Add a new technician to the system",
-                new[] { "add technician", "new technician", "create technician", "hire technician", "register technician" },
-                input => GatherAddTechnicianContext(input)
-            ));
-
-            // Arm: Add pest type
-            _arms.Add(new AgentArm(
-                "AddPestType",
-                "Add a new pest type to the system",
-                new[] { "add pest", "new pest", "create pest", "register pest", "add pest type", "new pest type" },
-                input => GatherAddPestContext(input)
-            ));
-
-            // Arm: Add treatment
-            _arms.Add(new AgentArm(
-                "AddTreatment",
-                "Add a new treatment to the system",
-                new[] { "add treatment", "new treatment", "create treatment", "register treatment" },
-                input => GatherAddTreatmentContext(input)
-            ));
-
-            // === READ ARMS ===
-
+            // ARM 1: CustomerSearch
+            // Triggered when the user asks about customers, clients, or specific people
             _arms.Add(new AgentArm(
                 "CustomerSearch",
                 "Search for customers by name, email, phone or address",
                 new[] { "customer", "find customer", "search customer", "client", "lookup customer", "person" },
-                input => GatherCustomerContext(input)
+                input => GatherCustomerContext(input)  // calls GatherCustomerContext to get all customer data
             ));
 
+            // ARM 2: TechnicianAvailability
+            // Triggered when the user wants to know who is available to do a job
             _arms.Add(new AgentArm(
                 "TechnicianAvailability",
                 "Check which technicians are available or find a specific technician",
@@ -123,6 +104,8 @@ namespace PestControl.Api.Services
                 input => GatherTechnicianContext(input)
             ));
 
+            // ARM 3: TreatmentRecommendation
+            // Triggered when the user wants to know what product or method to use on a pest
             _arms.Add(new AgentArm(
                 "TreatmentRecommendation",
                 "Recommend treatments for a specific pest type",
@@ -130,6 +113,8 @@ namespace PestControl.Api.Services
                 input => GatherTreatmentContext(input)
             ));
 
+            // ARM 4: BookingLookup
+            // Triggered when the user asks about appointments or job schedules
             _arms.Add(new AgentArm(
                 "BookingLookup",
                 "Look up bookings by status, date, or customer",
@@ -137,6 +122,8 @@ namespace PestControl.Api.Services
                 input => GatherBookingContext(input)
             ));
 
+            // ARM 5: PestInfo
+            // Triggered when the user asks about a specific pest type or infestation
             _arms.Add(new AgentArm(
                 "PestInfo",
                 "Get information about pest types, risk levels, and categories",
@@ -144,6 +131,8 @@ namespace PestControl.Api.Services
                 input => GatherPestContext(input)
             ));
 
+            // ARM 6: ReportSummary
+            // Triggered when the user wants to review inspection findings or follow-up actions
             _arms.Add(new AgentArm(
                 "ReportSummary",
                 "Summarise inspection reports and follow-ups needed",
@@ -151,6 +140,8 @@ namespace PestControl.Api.Services
                 input => GatherReportContext(input)
             ));
 
+            // ARM 7: DashboardStats
+            // Triggered when the user wants a general overview or count of records
             _arms.Add(new AgentArm(
                 "DashboardStats",
                 "Provide system statistics and overview",
@@ -160,30 +151,37 @@ namespace PestControl.Api.Services
         }
 
         /// <summary>
-        /// Processes a user message: selects the best arm, gathers context, calls Claude API.
-        /// For action arms, Claude returns JSON which is parsed and executed against SQL.
+        /// ProcessAsync is the main entry point — called every time the user sends a chat message.
+        ///
+        /// Step 1: Convert message to lowercase so keyword matching is case-insensitive
+        /// Step 2: Score every arm using ScoreArm() — pick the one with the highest score
+        /// Step 3: Run that arm's Execute() function to fetch real data from SQL
+        /// Step 4: Send the data + user message to Claude API
+        /// Step 5: Return Claude's response back to the chat widget
         /// </summary>
         public async Task<AgentResponse> ProcessAsync(string userMessage)
         {
+            // If the message is empty, return a greeting immediately without calling Claude
             if (string.IsNullOrWhiteSpace(userMessage))
             {
                 return new AgentResponse("general",
-                    "Hello! I'm the PestPro AI Assistant. Ask me about customers, bookings, technicians, treatments, pest types, or reports. I can also create new records!");
+                    "Hello! I'm the PestPro AI Assistant. Ask me about customers, bookings, technicians, treatments, pest types, or reports.");
             }
 
+            // Normalise the input — lowercase and trimmed for consistent keyword matching
             string lower = userMessage.ToLower().Trim();
 
-            // Score each arm by keyword matches
+            // Score every arm and find the best match
             AgentArm bestArm = null;
             int bestScore = 0;
 
             foreach (var arm in _arms)
             {
-                int score = ScoreArm(arm, lower);
+                int score = ScoreArm(arm, lower); // count how many of this arm's keywords appear in the message
                 if (score > bestScore)
                 {
                     bestScore = score;
-                    bestArm = arm;
+                    bestArm = arm; // this arm is currently the best match
                 }
             }
 
@@ -192,397 +190,135 @@ namespace PestControl.Api.Services
 
             if (bestArm != null && bestScore > 0)
             {
+                // An arm was matched — fetch the relevant data using its Execute function
                 dataContext = bestArm.Execute(lower);
                 armName = bestArm.Name;
             }
             else
             {
+                // No arm matched — fall back to general dashboard stats
                 dataContext = GatherDashboardContext(lower);
                 armName = "general";
             }
 
-            // Check if this is an action arm
-            bool isAction = IsActionArm(armName);
-
-            if (isAction)
-            {
-                // Ask Claude to extract structured JSON for the action
-                string jsonResponse = await CallClaudeForActionAsync(userMessage, dataContext, armName);
-                string actionResult = ExecuteAction(armName, jsonResponse);
-                return new AgentResponse(armName, actionResult);
-            }
-            else
-            {
-                string response = await CallClaudeAsync(userMessage, dataContext, armName);
-                return new AgentResponse(armName, response);
-            }
+            // Send the user message + fetched data to Claude and return the AI response
+            string response = await CallClaudeAsync(userMessage, dataContext, armName);
+            return new AgentResponse(armName, response);
         }
 
+        /// <summary>
+        /// Returns the list of all registered arms.
+        /// Used by GET /api/agent/arms to show what the agent can do.
+        /// </summary>
         public List<AgentArm> GetArms()
         {
             return _arms;
         }
 
-        private bool IsActionArm(string armName)
-        {
-            return armName == "CreateBooking" || armName == "AddCustomer" ||
-                   armName == "AddTechnician" || armName == "AddPestType" ||
-                   armName == "AddTreatment";
-        }
-
+        /// <summary>
+        /// ScoreArm calculates how relevant an arm is to the user's message.
+        /// It loops through all the arm's trigger keywords and checks if the message contains them.
+        /// Multi-word keywords score more points than single words.
+        ///   - "find customer" = 2 points (2 words)
+        ///   - "customer"      = 1 point  (1 word)
+        /// This means specific phrases beat generic single words, reducing false matches.
+        /// </summary>
         private int ScoreArm(AgentArm arm, string input)
         {
             int score = 0;
             foreach (var keyword in arm.TriggerKeywords)
             {
-                if (input.Contains(keyword))
+                if (input.Contains(keyword)) // check if this keyword appears anywhere in the message
                 {
-                    score += keyword.Split(' ').Length;
+                    score += keyword.Split(' ').Length; // add 1 point per word in the keyword
                 }
             }
             return score;
         }
 
-        // ========== CLAUDE API CALLS ==========
+        // ========== CLAUDE API CALL ==========
 
+        /// <summary>
+        /// CallClaudeAsync sends a POST request to the Anthropic Claude API.
+        /// We do NOT use any SDK — we call the REST API directly using HttpClient.
+        ///
+        /// The request contains:
+        ///   - model: which Claude model to use
+        ///   - system prompt: tells Claude who it is and gives it the real SQL data as context
+        ///   - user message: what the user typed in the chat
+        ///
+        /// Claude reads the real data we provide and generates a helpful response.
+        /// We parse the JSON response and extract just the text content.
+        /// </summary>
         private async Task<string> CallClaudeAsync(string userMessage, string dataContext, string armName)
         {
             try
             {
+                // Build the request body as an anonymous object — will be serialised to JSON
                 var requestBody = new
                 {
-                    model = "claude-haiku-4-5-20251001",
-                    max_tokens = 512,
+                    model = "claude-haiku-4-5-20251001", // the Claude model we're using
+                    max_tokens = 512,                    // limit response length to 512 tokens
+
+                    // The system prompt tells Claude its role and gives it the database data
                     system = "You are PestPro AI Assistant, a helpful chatbot embedded in a pest control management system. " +
                              "You help staff look up customers, bookings, technicians, treatments, pest info, and reports. " +
-                             "You can also CREATE new bookings, customers, technicians, pest types, and treatments. " +
                              "Be concise, friendly, and professional. Use the DATA below to answer accurately. " +
                              "Do not make up data — only use what is provided. If the data is empty, say so. " +
                              "Format responses in short readable lines, not huge paragraphs. " +
                              "Keep responses under 200 words.\n\n" +
-                             "ACTIVE ARM: " + armName + "\n\n" +
-                             "DATA FROM SYSTEM:\n" + dataContext,
+                             "ACTIVE ARM: " + armName + "\n\n" +      // tells Claude which arm is active
+                             "DATA FROM SYSTEM:\n" + dataContext,      // the real SQL data
+
+                    // The user's actual message
                     messages = new[]
                     {
                         new { role = "user", content = userMessage }
                     }
                 };
 
+                // Serialise the object to a JSON string and wrap it in an HTTP content body
                 var json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+                // POST to the Anthropic API endpoint
                 var response = await _httpClient.PostAsync("https://api.anthropic.com/v1/messages", content);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
+                // If Claude returned an error status code, show a friendly message
                 if (!response.IsSuccessStatusCode)
                     return "Sorry, I couldn't process that right now. Please try again.";
 
+                // Parse the JSON response and extract the text from Claude's reply
+                // The response structure is: { content: [ { text: "..." } ] }
                 using var doc = JsonDocument.Parse(responseBody);
                 var textContent = doc.RootElement
-                    .GetProperty("content")[0]
-                    .GetProperty("text")
+                    .GetProperty("content")[0]   // first content block
+                    .GetProperty("text")          // the text field
                     .GetString();
 
                 return textContent ?? "I received an empty response. Please try again.";
             }
             catch (Exception)
             {
+                // Network error or timeout — return a user-friendly message
                 return "Sorry, I'm having trouble connecting right now. Please try again in a moment.";
             }
         }
 
-        /// <summary>
-        /// Calls Claude to extract structured JSON from the user's natural language request.
-        /// Claude returns ONLY a JSON object with the fields needed for the action.
-        /// </summary>
-        private async Task<string> CallClaudeForActionAsync(string userMessage, string dataContext, string armName)
-        {
-            string jsonTemplate = GetJsonTemplate(armName);
-
-            try
-            {
-                var requestBody = new
-                {
-                    model = "claude-haiku-4-5-20251001",
-                    max_tokens = 512,
-                    system = "You are a data extraction assistant for a pest control management system. " +
-                             "Extract the relevant fields from the user's message and return ONLY valid JSON. " +
-                             "No explanation, no markdown, no code fences — just the raw JSON object. " +
-                             "If the user didn't specify a field, use a sensible default. " +
-                             "Use the EXISTING DATA to match names to IDs where needed.\n\n" +
-                             "EXISTING DATA:\n" + dataContext + "\n\n" +
-                             "REQUIRED JSON FORMAT:\n" + jsonTemplate,
-                    messages = new[]
-                    {
-                        new { role = "user", content = userMessage }
-                    }
-                };
-
-                var json = JsonSerializer.Serialize(requestBody);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync("https://api.anthropic.com/v1/messages", content);
-                var responseBody = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                    return "";
-
-                using var doc = JsonDocument.Parse(responseBody);
-                var textContent = doc.RootElement
-                    .GetProperty("content")[0]
-                    .GetProperty("text")
-                    .GetString();
-
-                return textContent ?? "";
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
-
-        private string GetJsonTemplate(string armName)
-        {
-            switch (armName)
-            {
-                case "CreateBooking":
-                    return "{\"customerId\": 1, \"pestTypeId\": 1, \"technicianId\": 1, \"date\": \"2025-04-01\", \"time\": \"09:00\", \"status\": \"Pending\", \"location\": \"123 Main St\", \"notes\": \"Initial inspection\"}";
-                case "AddCustomer":
-                    return "{\"name\": \"John Smith\", \"address\": \"123 Main St\", \"phone\": \"07700900000\", \"email\": \"john@example.com\", \"propertyType\": \"Residential\"}";
-                case "AddTechnician":
-                    return "{\"name\": \"Jane Doe\", \"specialisation\": \"Rodent Control\", \"phone\": \"07700900000\", \"email\": \"jane@pestpro.com\", \"available\": true}";
-                case "AddPestType":
-                    return "{\"name\": \"Bedbugs\", \"category\": \"Insects\", \"description\": \"Small parasitic insects that feed on blood\", \"riskLevel\": \"Medium\"}";
-                case "AddTreatment":
-                    return "{\"productName\": \"RatAway Pro\", \"method\": \"Bait stations\", \"targetPestTypeId\": 1, \"safetyInfo\": \"Keep away from children\"}";
-                default:
-                    return "{}";
-            }
-        }
-
-        // ========== ACTION EXECUTION ==========
-
-        /// <summary>
-        /// Parses the JSON returned by Claude and executes the corresponding repository write.
-        /// Returns a confirmation message to the user.
-        /// </summary>
-        private string ExecuteAction(string armName, string jsonResponse)
-        {
-            if (string.IsNullOrWhiteSpace(jsonResponse))
-                return "Sorry, I couldn't understand the details. Could you try again with more information?";
-
-            try
-            {
-                // Strip markdown code fences if Claude added them
-                jsonResponse = jsonResponse.Trim();
-                if (jsonResponse.StartsWith("```"))
-                {
-                    jsonResponse = jsonResponse.Substring(jsonResponse.IndexOf('\n') + 1);
-                    if (jsonResponse.EndsWith("```"))
-                        jsonResponse = jsonResponse.Substring(0, jsonResponse.LastIndexOf("```"));
-                    jsonResponse = jsonResponse.Trim();
-                }
-
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-                switch (armName)
-                {
-                    case "CreateBooking":
-                        return ExecuteCreateBooking(jsonResponse, options);
-                    case "AddCustomer":
-                        return ExecuteAddCustomer(jsonResponse, options);
-                    case "AddTechnician":
-                        return ExecuteAddTechnician(jsonResponse, options);
-                    case "AddPestType":
-                        return ExecuteAddPest(jsonResponse, options);
-                    case "AddTreatment":
-                        return ExecuteAddTreatment(jsonResponse, options);
-                    default:
-                        return "Unknown action.";
-                }
-            }
-            catch (Exception ex)
-            {
-                return "Sorry, I had trouble creating that record. Error: " + ex.Message + "\nPlease try again with clearer details.";
-            }
-        }
-
-        private string ExecuteCreateBooking(string json, JsonSerializerOptions opts)
-        {
-            using var doc = JsonDocument.Parse(json);
-            var r = doc.RootElement;
-
-            var booking = new Booking(
-                0,
-                r.GetProperty("customerId").GetInt32(),
-                r.GetProperty("pestTypeId").GetInt32(),
-                r.GetProperty("technicianId").GetInt32(),
-                r.GetProperty("date").GetString() ?? "2025-04-01",
-                r.GetProperty("time").GetString() ?? "09:00",
-                r.GetProperty("status").GetString() ?? "Pending",
-                r.GetProperty("location").GetString() ?? "",
-                r.GetProperty("notes").GetString() ?? ""
-            );
-
-            _bookings.Add(booking);
-
-            var cust = _customers.GetAll().FirstOrDefault(c => c.Id == booking.CustomerId);
-            var pest = _pestTypes.GetAll().FirstOrDefault(p => p.Id == booking.PestTypeId);
-            var tech = _technicians.GetAll().FirstOrDefault(t => t.Id == booking.TechnicianId);
-
-            return "Booking created successfully!\n" +
-                   "Customer: " + (cust?.Name ?? "ID " + booking.CustomerId) + "\n" +
-                   "Pest: " + (pest?.Name ?? "ID " + booking.PestTypeId) + "\n" +
-                   "Technician: " + (tech?.Name ?? "ID " + booking.TechnicianId) + "\n" +
-                   "Date: " + booking.Date + " at " + booking.Time + "\n" +
-                   "Location: " + booking.Location + "\n" +
-                   "Status: " + booking.Status;
-        }
-
-        private string ExecuteAddCustomer(string json, JsonSerializerOptions opts)
-        {
-            using var doc = JsonDocument.Parse(json);
-            var r = doc.RootElement;
-
-            var customer = new Customer(
-                0,
-                r.GetProperty("name").GetString() ?? "New Customer",
-                r.GetProperty("address").GetString() ?? "",
-                r.GetProperty("phone").GetString() ?? "",
-                r.GetProperty("email").GetString() ?? "",
-                r.GetProperty("propertyType").GetString() ?? "Residential"
-            );
-
-            _customers.Add(customer);
-
-            return "Customer added successfully!\n" +
-                   "Name: " + customer.Name + "\n" +
-                   "Address: " + customer.Address + "\n" +
-                   "Phone: " + customer.Phone + "\n" +
-                   "Email: " + customer.Email + "\n" +
-                   "Property: " + customer.PropertyType;
-        }
-
-        private string ExecuteAddTechnician(string json, JsonSerializerOptions opts)
-        {
-            using var doc = JsonDocument.Parse(json);
-            var r = doc.RootElement;
-
-            var tech = new Technician(
-                0,
-                r.GetProperty("name").GetString() ?? "New Technician",
-                r.GetProperty("specialisation").GetString() ?? "General",
-                r.GetProperty("phone").GetString() ?? "",
-                r.GetProperty("email").GetString() ?? "",
-                r.TryGetProperty("available", out var avail) ? avail.GetBoolean() : true
-            );
-
-            _technicians.Add(tech);
-
-            return "Technician added successfully!\n" +
-                   "Name: " + tech.Name + "\n" +
-                   "Specialisation: " + tech.Specialisation + "\n" +
-                   "Phone: " + tech.Phone + "\n" +
-                   "Email: " + tech.Email + "\n" +
-                   "Available: " + (tech.Available ? "Yes" : "No");
-        }
-
-        private string ExecuteAddPest(string json, JsonSerializerOptions opts)
-        {
-            using var doc = JsonDocument.Parse(json);
-            var r = doc.RootElement;
-
-            var pest = new PestType(
-                0,
-                r.GetProperty("name").GetString() ?? "New Pest",
-                r.GetProperty("category").GetString() ?? "Other",
-                r.GetProperty("description").GetString() ?? "",
-                r.GetProperty("riskLevel").GetString() ?? "Medium"
-            );
-
-            _pestTypes.Add(pest);
-
-            return "Pest type added successfully!\n" +
-                   "Name: " + pest.Name + "\n" +
-                   "Category: " + pest.Category + "\n" +
-                   "Risk Level: " + pest.RiskLevel + "\n" +
-                   "Description: " + pest.Description;
-        }
-
-        private string ExecuteAddTreatment(string json, JsonSerializerOptions opts)
-        {
-            using var doc = JsonDocument.Parse(json);
-            var r = doc.RootElement;
-
-            var treatment = new Treatment(
-                0,
-                r.GetProperty("productName").GetString() ?? "New Treatment",
-                r.GetProperty("method").GetString() ?? "",
-                r.GetProperty("targetPestTypeId").GetInt32(),
-                r.GetProperty("safetyInfo").GetString() ?? ""
-            );
-
-            _treatments.Add(treatment);
-
-            var pest = _pestTypes.GetAll().FirstOrDefault(p => p.Id == treatment.TargetPestTypeId);
-
-            return "Treatment added successfully!\n" +
-                   "Product: " + treatment.ProductName + "\n" +
-                   "Method: " + treatment.Method + "\n" +
-                   "Target Pest: " + (pest?.Name ?? "ID " + treatment.TargetPestTypeId) + "\n" +
-                   "Safety Info: " + treatment.SafetyInfo;
-        }
-
         // ========== CONTEXT GATHERING METHODS ==========
+        // These methods are called by each arm's Execute() function.
+        // They query the SQL database via the repository interfaces and
+        // format the data as a plain-text string that gets sent to Claude as context.
 
-        private string GatherCreateBookingContext(string input)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("CUSTOMERS:");
-            foreach (var c in _customers.GetAll())
-                sb.AppendLine("- ID:" + c.Id + " " + c.Name);
-            sb.AppendLine("\nPEST TYPES:");
-            foreach (var p in _pestTypes.GetAll())
-                sb.AppendLine("- ID:" + p.Id + " " + p.Name);
-            sb.AppendLine("\nTECHNICIANS (available):");
-            foreach (var t in _technicians.GetAll().Where(t => t.Available))
-                sb.AppendLine("- ID:" + t.Id + " " + t.Name + " (" + t.Specialisation + ")");
-            return sb.ToString();
-        }
-
-        private string GatherAddCustomerContext(string input)
-        {
-            return "PropertyType options: Residential, Commercial, Industrial\nExisting customers: " + _customers.GetAll().Count;
-        }
-
-        private string GatherAddTechnicianContext(string input)
-        {
-            return "Common specialisations: Rodent Control, Insect Control, Bird Control, General Pest Control, Fumigation, Termite Specialist\nExisting technicians: " + _technicians.GetAll().Count;
-        }
-
-        private string GatherAddPestContext(string input)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Category options: Insects, Rodents, Birds, Wildlife, Other");
-            sb.AppendLine("RiskLevel options: Low, Medium, High");
-            sb.AppendLine("Existing pest types:");
-            foreach (var p in _pestTypes.GetAll())
-                sb.AppendLine("- " + p.Name);
-            return sb.ToString();
-        }
-
-        private string GatherAddTreatmentContext(string input)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("PEST TYPES (use ID for targetPestTypeId):");
-            foreach (var p in _pestTypes.GetAll())
-                sb.AppendLine("- ID:" + p.Id + " " + p.Name);
-            return sb.ToString();
-        }
-
+        /// <summary>
+        /// Fetches all customers from the database.
+        /// Builds a formatted list with ID, name, address, phone, email, and property type.
+        /// This data is given to Claude so it can answer customer-related questions.
+        /// </summary>
         private string GatherCustomerContext(string input)
         {
-            var all = _customers.GetAll();
+            var all = _customers.GetAll(); // SQL: SELECT * FROM Customers
             var sb = new StringBuilder();
             sb.AppendLine("CUSTOMERS (" + all.Count + " total):");
             foreach (var c in all)
@@ -590,9 +326,13 @@ namespace PestControl.Api.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Fetches all technicians and their availability status.
+        /// Claude uses this to answer questions like "who is free today?"
+        /// </summary>
         private string GatherTechnicianContext(string input)
         {
-            var all = _technicians.GetAll();
+            var all = _technicians.GetAll(); // SQL: SELECT * FROM Technicians
             var sb = new StringBuilder();
             sb.AppendLine("TECHNICIANS (" + all.Count + " total):");
             foreach (var t in all)
@@ -600,6 +340,11 @@ namespace PestControl.Api.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Fetches all treatments AND all pest types together.
+        /// Joins them so Claude knows which treatment is for which pest.
+        /// e.g. "RatAway Pro | Bait stations | For: Brown Rat"
+        /// </summary>
         private string GatherTreatmentContext(string input)
         {
             var allTreatments = _treatments.GetAll();
@@ -608,6 +353,7 @@ namespace PestControl.Api.Services
             sb.AppendLine("TREATMENTS (" + allTreatments.Count + " total):");
             foreach (var t in allTreatments)
             {
+                // Find the pest name by matching TargetPestTypeId to the pest's Id
                 var pest = allPests.FirstOrDefault(p => p.Id == t.TargetPestTypeId);
                 string pestName = pest != null ? pest.Name : "General";
                 sb.AppendLine("- ID:" + t.Id + " | " + t.ProductName + " | Method: " + t.Method + " | For: " + pestName + " | Safety: " + t.SafetyInfo);
@@ -618,6 +364,10 @@ namespace PestControl.Api.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Fetches all bookings and resolves customer names and pest names.
+        /// Without this join, Claude would only see IDs (e.g. CustomerId=3) instead of names.
+        /// </summary>
         private string GatherBookingContext(string input)
         {
             var allBookings = _bookings.GetAll();
@@ -627,6 +377,7 @@ namespace PestControl.Api.Services
             sb.AppendLine("BOOKINGS (" + allBookings.Count + " total):");
             foreach (var b in allBookings)
             {
+                // Look up the customer name and pest name using the foreign key IDs
                 var cust = allCustomers.FirstOrDefault(c => c.Id == b.CustomerId);
                 var pest = allPests.FirstOrDefault(p => p.Id == b.PestTypeId);
                 string custName = cust != null ? cust.Name : "Unknown";
@@ -636,9 +387,13 @@ namespace PestControl.Api.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Fetches all pest types with their category, risk level, and description.
+        /// Claude uses this to explain what a pest is and how dangerous it is.
+        /// </summary>
         private string GatherPestContext(string input)
         {
-            var all = _pestTypes.GetAll();
+            var all = _pestTypes.GetAll(); // SQL: SELECT * FROM PestTypes
             var sb = new StringBuilder();
             sb.AppendLine("PEST TYPES (" + all.Count + " total):");
             foreach (var p in all)
@@ -646,9 +401,13 @@ namespace PestControl.Api.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Fetches all inspection reports with findings and recommendations.
+        /// Also shows whether a follow-up visit is needed.
+        /// </summary>
         private string GatherReportContext(string input)
         {
-            var all = _reports.GetAll();
+            var all = _reports.GetAll(); // SQL: SELECT * FROM InspectionReports
             var sb = new StringBuilder();
             sb.AppendLine("INSPECTION REPORTS (" + all.Count + " total):");
             foreach (var r in all)
@@ -660,6 +419,11 @@ namespace PestControl.Api.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Builds a system-wide summary: total counts, booking statuses, technician availability.
+        /// Used as the fallback context when no arm matches, and for the DashboardStats arm.
+        /// GroupBy groups bookings by status so we can count e.g. Pending=3, Completed=7.
+        /// </summary>
         private string GatherDashboardContext(string input)
         {
             var sb = new StringBuilder();
@@ -670,6 +434,7 @@ namespace PestControl.Api.Services
             sb.AppendLine("- Technicians: " + techs.Count + " (" + techs.Count(t => t.Available) + " available)");
             var bookings = _bookings.GetAll();
             sb.AppendLine("- Bookings: " + bookings.Count);
+            // Group bookings by their Status field and count each group
             foreach (var g in bookings.GroupBy(b => b.Status))
                 sb.AppendLine("  - " + g.Key + ": " + g.Count());
             sb.AppendLine("- Treatments: " + _treatments.GetAll().Count);
@@ -680,7 +445,10 @@ namespace PestControl.Api.Services
     }
 
     /// <summary>
-    /// Response object returned by the agent after processing a message.
+    /// AgentResponse is what the agent returns after processing a message.
+    /// - Arm: which arm handled the request (e.g. "CustomerSearch", "PestInfo")
+    /// - Message: the text response from Claude to show in the chat
+    /// The frontend uses Arm to show a label under the chat bubble.
     /// </summary>
     public class AgentResponse
     {
