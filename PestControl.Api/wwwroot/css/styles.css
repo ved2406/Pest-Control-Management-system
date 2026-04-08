@@ -345,6 +345,12 @@ tbody tr:hover {
     color: white;
 }
 .btn-success:hover { opacity: 0.9; }
+.btn-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.btn-warning:hover { background: rgba(245, 158, 11, 0.25); }
 .btn-danger {
     background: rgba(239, 68, 68, 0.15);
     color: var(--accent-red);
@@ -406,6 +412,25 @@ tbody tr:hover {
 }
 
 .form-group textarea { resize: vertical; min-height: 80px; }
+
+/* === Inline Status Select === */
+.status-select {
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+}
+.status-select.status-pending { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.3); }
+.status-select.status-confirmed { background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-color: rgba(6,182,212,0.3); }
+.status-select.status-inprogress { background: rgba(59,130,246,0.15); color: var(--accent-blue); border-color: rgba(59,130,246,0.3); }
+.status-select.status-completed { background: rgba(16,185,129,0.15); color: var(--accent-green); border-color: rgba(16,185,129,0.3); }
+.status-select option { background: var(--bg-card); color: var(--text-primary); }
 
 .form-row {
     display: grid;

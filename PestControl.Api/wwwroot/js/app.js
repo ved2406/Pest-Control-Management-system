@@ -3,6 +3,7 @@
 const API = '';
 let currentPage = 'dashboard';
 let customers = [], pestTypes = [], bookings = [], technicians = [], treatments = [], reports = [];
+let refreshInterval = null;
 
 // === Startup ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -112,7 +113,20 @@ async function loadPage(page) {
     await loadAllData();
 
     const content = document.getElementById('content');
-    switch (page) {
+    renderCurrentPage(content);
+
+    // Auto-refresh every 30 seconds for real-time updates
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(async () => {
+        // Don't refresh if a modal is open
+        if (document.getElementById('modalOverlay').classList.contains('show')) return;
+        await loadAllData();
+        renderCurrentPage(document.getElementById('content'));
+    }, 30000);
+}
+
+function renderCurrentPage(content) {
+    switch (currentPage) {
         case 'dashboard': content.innerHTML = renderDashboard(); break;
         case 'bookings': content.innerHTML = renderBookings(); setupBookingActions(); break;
         case 'customers': content.innerHTML = renderCustomers(); setupCustomerActions(); break;
@@ -225,7 +239,11 @@ function renderBookings() {
         html += '<td>' + getPestName(b.pestTypeId) + '</td>';
         html += '<td>' + getTechName(b.technicianId) + '</td>';
         html += '<td>' + b.location + '</td>';
-        html += '<td>' + statusBadge(b.status) + '</td>';
+        html += '<td><select class="status-select status-' + b.status.replace(/\s/g,'').toLowerCase() + '" onchange="updateBookingStatus(' + b.id + ', this.value)">';
+        ['Pending','Confirmed','In Progress','Completed'].forEach(s => {
+            html += '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s + '</option>';
+        });
+        html += '</select></td>';
         html += '<td><div class="btn-group">';
         html += '<button class="btn btn-outline btn-sm" onclick="viewBooking(' + b.id + ')">View</button>';
         html += '<button class="btn btn-danger btn-sm" onclick="deleteBooking(' + b.id + ')">Delete</button>';
@@ -233,6 +251,21 @@ function renderBookings() {
     });
     html += '</tbody></table></div></div>';
     return html;
+}
+
+async function updateBookingStatus(id, newStatus) {
+    const b = bookings.find(x => x.id === id);
+    if (!b) return;
+    const updated = Object.assign({}, b, { status: newStatus });
+    await putJson('/api/bookings/' + id, updated);
+    b.status = newStatus;
+    // Update the select's styling class without full reload
+    const selects = document.querySelectorAll('.status-select');
+    selects.forEach(sel => {
+        if (sel.closest('tr') && sel.value === newStatus) {
+            sel.className = 'status-select status-' + newStatus.replace(/\s/g,'').toLowerCase();
+        }
+    });
 }
 
 function setupBookingActions() {}
@@ -392,7 +425,7 @@ function renderTechnicians() {
     technicians.forEach(t => {
         html += '<tr><td>#' + t.id + '</td><td>' + t.name + '</td><td>' + t.specialisation + '</td>';
         html += '<td>' + t.phone + '</td><td>' + t.email + '</td>';
-        html += '<td>' + (t.available ? '<span class="badge badge-available">Available</span>' : '<span class="badge badge-unavailable">Unavailable</span>') + '</td>';
+        html += '<td><button class="btn btn-sm ' + (t.available ? 'btn-success' : 'btn-warning') + '" onclick="toggleAvailability(' + t.id + ',' + t.available + ')">' + (t.available ? 'Available' : 'Unavailable') + '</button></td>';
         html += '<td><button class="btn btn-danger btn-sm" onclick="deleteTechnician(' + t.id + ')">Delete</button></td>';
         html += '</tr>';
     });
@@ -432,6 +465,14 @@ function openNewTechnicianModal() {
 async function deleteTechnician(id) {
     if (!confirm('Delete technician #' + id + '?')) return;
     await deleteReq('/api/technicians/' + id);
+    loadPage('technicians');
+}
+
+async function toggleAvailability(id, current) {
+    const t = technicians.find(x => x.id === id);
+    if (!t) return;
+    const updated = Object.assign({}, t, { available: !current });
+    await putJson('/api/technicians/' + id, updated);
     loadPage('technicians');
 }
 
@@ -502,18 +543,57 @@ function renderTreatments() {
 
 // === Reports ===
 function renderReports() {
-    let html = '<div class="section-card"><div class="section-header"><h2>All Inspection Reports</h2></div>';
-    html += '<div class="table-wrapper"><table><thead><tr>';
+    let html = '<div class="section-card"><div class="section-header"><h2>All Inspection Reports</h2>';
+    html += '<button class="btn btn-primary" onclick="openNewReportModal()">+ New Report</button>';
+    html += '</div><div class="table-wrapper"><table><thead><tr>';
     html += '<th>ID</th><th>Booking</th><th>Date</th><th>Findings</th><th>Follow-up</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     reports.forEach(r => {
         html += '<tr><td>#' + r.id + '</td><td>#' + r.bookingId + '</td><td>' + r.reportDate + '</td>';
         html += '<td>' + (r.findings.length > 50 ? r.findings.substring(0, 50) + '...' : r.findings) + '</td>';
-        html += '<td>' + (r.followUpNeeded ? '<span class="badge badge-high">Yes</span>' : '<span class="badge badge-low">No</span>') + '</td>';
+        html += '<td><button class="btn btn-sm ' + (r.followUpNeeded ? 'btn-danger' : 'btn-outline') + '" onclick="toggleFollowUp(' + r.id + ',' + r.followUpNeeded + ')">' + (r.followUpNeeded ? 'Yes - Needed' : 'No - Clear') + '</button></td>';
         html += '<td><button class="btn btn-outline btn-sm" onclick="viewReport(' + r.id + ')">View</button></td></tr>';
     });
+    if (reports.length === 0) {
+        html += '<tr><td colspan="6" class="empty-state"><div class="empty-state-text">No reports yet</div></td></tr>';
+    }
     html += '</tbody></table></div></div>';
     return html;
+}
+
+function openNewReportModal() {
+    const bookingOptions = bookings.map(b => '<option value="' + b.id + '">#' + b.id + ' - ' + getCustomerName(b.customerId) + ' (' + b.date + ')</option>').join('');
+    let html = '<form id="newReportForm">';
+    html += formSelect('Booking', 'rBookingId', bookingOptions);
+    html += formInput('Report Date', 'rDate', 'date');
+    html += formTextarea('Findings', 'rFindings');
+    html += formTextarea('Recommendations', 'rRecommendations');
+    html += formSelect('Follow-up Needed', 'rFollowUp', '<option value="false">No</option><option value="true">Yes</option>');
+    html += '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">Add Report</button>';
+    html += '</form>';
+    openModal('New Inspection Report', html);
+    document.getElementById('newReportForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            id: 0,
+            bookingId: parseInt(document.getElementById('rBookingId').value),
+            reportDate: document.getElementById('rDate').value,
+            findings: document.getElementById('rFindings').value,
+            recommendations: document.getElementById('rRecommendations').value,
+            followUpNeeded: document.getElementById('rFollowUp').value === 'true'
+        };
+        await postJson('/api/inspectionreports', data);
+        closeModal();
+        loadPage('reports');
+    });
+}
+
+async function toggleFollowUp(id, current) {
+    const r = reports.find(x => x.id === id);
+    if (!r) return;
+    const updated = Object.assign({}, r, { followUpNeeded: !current });
+    await putJson('/api/inspectionreports/' + id, updated);
+    loadPage('reports');
 }
 
 function viewReport(id) {
