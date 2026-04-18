@@ -31,7 +31,7 @@ builder.Services.AddSingleton<PestControlAgent>(sp =>
         sp.GetRequiredService<ITechnicianRepository>(),
         sp.GetRequiredService<ITreatmentRepository>(),
         sp.GetRequiredService<IInspectionReportRepository>(),
-        "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"
+        Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY") ?? "your-api-key-here"
     ));
 
 // Register all controller classes so their endpoints work
