@@ -1,3 +1,10 @@
+# C# build output
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
 # Dependencies
 node_modules/
 npm-debug.log
@@ -17,6 +24,9 @@ yarn.lock
 .env
 .env.local
 .env.*.local
+
+# Local secrets
+appsettings.Development.json
 
 # Build files
 dist/
