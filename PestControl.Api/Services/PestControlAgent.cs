@@ -25,6 +25,16 @@ namespace PestControl.Api.Services
         private readonly ITreatmentRepository _treatments;
         private readonly IInspectionReportRepository _reports;
 
+        // 6-param constructor used by tests — no API key, Claude calls disabled
+        public PestControlAgent(
+            ICustomerRepository customers,
+            IPestTypeRepository pestTypes,
+            IBookingRepository bookings,
+            ITechnicianRepository technicians,
+            ITreatmentRepository treatments,
+            IInspectionReportRepository reports)
+            : this(customers, pestTypes, bookings, technicians, treatments, reports, null) { }
+
         public PestControlAgent(
             ICustomerRepository customers,
             IPestTypeRepository pestTypes,
@@ -43,8 +53,11 @@ namespace PestControl.Api.Services
             _apiKey = apiKey;
 
             _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
-            _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+            if (_apiKey != null)
+            {
+                _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
+                _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+            }
 
             RegisterArms();
         }
@@ -139,6 +152,41 @@ namespace PestControl.Api.Services
 
             string response = await CallClaudeAsync(userMessage, dataContext, armName);
             return new AgentResponse(armName, response);
+        }
+
+        // Synchronous version used by tests — scores arms and returns DB context without calling Claude
+        public AgentResponse Process(string userMessage)
+        {
+            if (string.IsNullOrWhiteSpace(userMessage))
+                return new AgentResponse("general",
+                    "Hello! I'm the PestPro AI Assistant. Ask me about customers, bookings, technicians, treatments, pest types, or reports.");
+
+            string lower = userMessage.ToLower().Trim();
+
+            if (lower == "hello" || lower == "hi" || lower.StartsWith("hello ") || lower.StartsWith("hi "))
+            {
+                var caps = string.Join("\n", _arms.Select(a => "- " + a.Description));
+                return new AgentResponse("general", caps);
+            }
+
+            AgentArm bestArm = null;
+            int bestScore = 0;
+
+            foreach (var arm in _arms)
+            {
+                int score = ScoreArm(arm, lower);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestArm = arm;
+                }
+            }
+
+            if (bestArm != null && bestScore > 0)
+                return new AgentResponse(bestArm.Name, bestArm.Description + "\n" + bestArm.Execute(lower));
+
+            return new AgentResponse("general",
+                "I'm not sure how to help with that. Try asking about customers, bookings, technicians, treatments, pest types, or reports.");
         }
 
         public List<AgentArm> GetArms() => _arms;
