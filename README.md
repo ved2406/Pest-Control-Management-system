@@ -12,7 +12,7 @@ A full-stack pest control management system built with .NET Core Web API and a v
 - **Treatment Catalogue** — Treatments linked to specific pest types with safety info
 - **Inspection Reports** — Track findings, recommendations, and follow-ups
 - **Cross-Entity Search** — Search across all data with clickable results
-- **AI Agent** — Claude-powered chatbot with 12 arms (7 read + 5 write) that can query data and create records via natural language
+- **AI Agent** — Claude-powered chatbot with 7 read capabilities that can query data via natural language
 
 ## Tech Stack
 
@@ -27,7 +27,7 @@ A full-stack pest control management system built with .NET Core Web API and a v
 
 - **Repository Pattern** — Interfaces with SQL and Static implementations
 - **Custom BST** — Generic binary search tree for in-memory data operations (O(log n) search/insert)
-- **AI Agent with Arms** — Keyword-weighted intent matching selects the best arm, gathers SQL data as context, and calls Claude API for natural language responses and action execution
+- **AI Agent with Arms** — Keyword-weighted intent matching selects the best arm, gathers SQL data as context, and calls Claude API for natural language responses
 - **SPA Frontend** — Single-page app with dynamic page loading and modal overlays
 
 ## Project Structure
@@ -82,7 +82,7 @@ ANTHROPIC_API_KEY=your_key_here
 cd PestControl.Api
 dotnet run
 ```
-Open `http://localhost:5000` in your browser.
+Open `http://localhost:5073` in your browser.
 
 ### Running Tests
 ```bash
@@ -92,18 +92,16 @@ dotnet test
 
 ## AI Agent
 
-The AI Agent is a chatbot accessible via the floating chat button. It uses 12 specialised "arms":
+The AI Agent is a chatbot accessible via the floating chat button. It uses 7 specialised "read arms" for querying data:
 
 **Read Arms:** Customer Search, Technician Availability, Treatment Recommendation, Booking Lookup, Pest Info, Report Summary, Dashboard Stats
-
-**Action Arms:** Create Booking, Add Customer, Add Technician, Add Pest Type, Add Treatment
 
 Example queries:
 - "show me all customers"
 - "who is available?"
 - "recommend treatment for rats"
-- "add a new technician called John, specialises in rodents"
-- "create a booking for Sarah Johnson, cockroach problem, tomorrow at 10am"
+- "find technician specialising in rodents"
+- "what bookings do we have tomorrow?"
 
 ## CST2550 Group Coursework
 
