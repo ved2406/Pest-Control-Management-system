@@ -1,115 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Page setup — tells browser to use UTF-8 encoding and scale responsively on mobile -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Title that appears in the browser tab -->
     <title>PestPro - Pest Management System</title>
-    <!-- Load all our custom CSS styling for the entire app -->
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <!-- Left sidebar navigation — lets users switch between different pages like Bookings, Customers, etc. -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <!-- App logo and branding text at the top of the sidebar -->
             <div class="logo">
-                <span class="logo-icon">&#9878;</span>
                 <span class="logo-text">PestPro</span>
             </div>
         </div>
-        <!-- Navigation menu — clicking on each item switches to a different page section -->
         <ul class="nav-menu">
-            <li class="nav-item active" data-page="dashboard">
-                <span class="nav-icon">&#9632;</span> Dashboard
-            </li>
-            <li class="nav-item" data-page="bookings">
-                <span class="nav-icon">&#128197;</span> Bookings
-            </li>
-            <li class="nav-item" data-page="customers">
-                <span class="nav-icon">&#128101;</span> Customers
-            </li>
-            <li class="nav-item" data-page="technicians">
-                <span class="nav-icon">&#128736;</span> Technicians
-            </li>
-            <li class="nav-item" data-page="pests">
-                <span class="nav-icon">&#128027;</span> Pest Types
-            </li>
-            <li class="nav-item" data-page="treatments">
-                <span class="nav-icon">&#9883;</span> Treatments
-            </li>
-            <li class="nav-item" data-page="reports">
-                <span class="nav-icon">&#128196;</span> Reports
-            </li>
-            <li class="nav-item" data-page="search">
-                <span class="nav-icon">&#128269;</span> Search
-            </li>
+            <li class="nav-item active" data-page="dashboard">Dashboard</li>
+            <li class="nav-item" data-page="bookings">Bookings</li>
+            <li class="nav-item" data-page="customers">Customers</li>
+            <li class="nav-item" data-page="technicians">Technicians</li>
+            <li class="nav-item" data-page="pests">Pest Types</li>
+            <li class="nav-item" data-page="treatments">Treatments</li>
+            <li class="nav-item" data-page="reports">Reports</li>
+            <li class="nav-item" data-page="search">Search</li>
         </ul>
     </nav>
 
     <main class="main-content">
-        <!-- Top bar with page title and search — this bar stays visible no matter what page you're on -->
         <header class="top-bar">
             <button class="menu-toggle" id="menuToggle">&#9776;</button>
-            <!-- Page title changes dynamically depending on which section the user is viewing -->
             <h1 class="page-title" id="pageTitle">Dashboard</h1>
-            <!-- Search box that searches across all customers, bookings, and other data in the app -->
             <div class="top-bar-search">
                 <input type="text" id="globalSearch" placeholder="Quick search..." />
             </div>
         </header>
 
-        <!-- Main content area where different pages get loaded based on which nav item was clicked -->
         <div class="content" id="content">
             <!-- Dynamic content loaded here -->
         </div>
     </main>
 
-    <!-- Modal dialog that pops up on top when user submits forms or clicks to view details -->
+    <!-- Modal -->
     <div class="modal-overlay" id="modalOverlay">
         <div class="modal" id="modal">
-            <!-- Modal header with a title and close button in the top right -->
             <div class="modal-header">
                 <h2 id="modalTitle">Title</h2>
                 <button class="modal-close" id="modalClose">&times;</button>
             </div>
-            <!-- Modal body is where form fields or detailed information gets displayed -->
             <div class="modal-body" id="modalBody"></div>
         </div>
     </div>
 
-    <!-- AI chat widget floating in the bottom right corner — lets users ask questions about the system -->
-    <!-- Floating button to open and close the chat widget -->
-    <div class="chat-fab" id="chatFab" title="AI Assistant">&#9883;</div>
-    <!-- Chat window with message display area and input field for user messages -->
+    <!-- AI Agent Chat Widget -->
+    <div class="chat-fab" id="chatFab" title="Petsy">AI</div>
     <div class="chat-widget" id="chatWidget">
         <div class="chat-header">
-            <!-- Header section with AI assistant icon and title text -->
             <div class="chat-header-info">
-                <span class="chat-header-icon">&#9883;</span>
+                <div class="chat-header-icon">AI</div>
                 <div>
-                    <div class="chat-header-title">PestPro AI Assistant</div>
+                    <div class="chat-header-title">Petsy</div>
                     <div class="chat-header-sub">Ask me anything about the system</div>
                 </div>
             </div>
-            <!-- Close button in the top right to minimize or close the chat -->
             <button class="chat-header-close" id="chatClose">&times;</button>
         </div>
-        <!-- Area that displays the conversation history between user and AI -->
         <div class="chat-messages" id="chatMessages">
             <div class="chat-msg bot">
-                <div class="chat-msg-bubble">Hello! I'm the PestPro AI Assistant. Ask me about customers, bookings, technicians, treatments, pests, or reports.</div>
+                <div class="chat-msg-bubble">Hello! I'm Petsy, your PestPro AI Assistant. Ask me about customers, bookings, technicians, treatments, pests, or reports.</div>
             </div>
         </div>
-        <!-- Input section where user types messages and sends them to the AI -->
         <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" />
-            <button class="chat-send" id="chatSend">&#10148;</button>
+            <button class="chat-send" id="chatSend">Send</button>
         </div>
     </div>
 
-    <!-- Load the main app JavaScript file that handles all user interactions and page loading -->
     <script src="/js/app.js"></script>
 </body>
 </html>

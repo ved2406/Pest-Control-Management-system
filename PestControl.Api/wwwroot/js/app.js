@@ -1,41 +1,34 @@
-// --- global variables ---
+// === PestPro Frontend Application ===
 
-const API = ''; // base url, empty = same server
+const API = '';
 let currentPage = 'dashboard';
-// arrays to hold all the data we load from the api
 let customers = [], pestTypes = [], bookings = [], technicians = [], treatments = [], reports = [];
+let refreshInterval = null;
 
-// --- startup ---
-
+// === Startup ===
 document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupModal();
     setupGlobalSearch();
-    loadPage('dashboard'); // show dashboard first
+    loadPage('dashboard');
 });
 
-// --- navigation (sidebar + hamburger menu) ---
-
+// === Navigation ===
 function setupNavigation() {
-    // make each nav link clickable
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const page = item.dataset.page;
-            // remove active from all links then add it to the one clicked
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
             loadPage(page);
-            // close sidebar on mobile after clicking
+            // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
         });
     });
-    // hamburger button toggles sidebar
     document.getElementById('menuToggle').addEventListener('click', () => {
         document.getElementById('sidebar').classList.toggle('open');
     });
 }
-
-// --- global search bar ---
 
 function setupGlobalSearch() {
     const input = document.getElementById('globalSearch');
@@ -48,11 +41,9 @@ function setupGlobalSearch() {
     });
 }
 
-// --- modal popup ---
-
+// === Modal ===
 function setupModal() {
     document.getElementById('modalClose').addEventListener('click', closeModal);
-    // clicking the dark overlay also closes the modal
     document.getElementById('modalOverlay').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeModal();
     });
@@ -68,8 +59,7 @@ function closeModal() {
     document.getElementById('modalOverlay').classList.remove('show');
 }
 
-// --- fetch helpers (reusable api calls) ---
-
+// === API Helpers ===
 async function fetchJson(url) {
     const res = await fetch(API + url);
     if (!res.ok) return null;
@@ -98,10 +88,8 @@ async function deleteReq(url) {
     return fetch(API + url, { method: 'DELETE' });
 }
 
-// --- load all data from api ---
-
+// === Load All Data ===
 async function loadAllData() {
-    // fetch everything at once with Promise.all
     const results = await Promise.all([
         fetchJson('/api/customers'),
         fetchJson('/api/pesttypes'),
@@ -118,15 +106,27 @@ async function loadAllData() {
     reports = results[5] || [];
 }
 
-// --- page loader ---
-
+// === Page Router ===
 async function loadPage(page) {
     currentPage = page;
     document.getElementById('pageTitle').textContent = getPageTitle(page);
     await loadAllData();
 
     const content = document.getElementById('content');
-    switch (page) {
+    renderCurrentPage(content);
+
+    // Auto-refresh every 30 seconds for real-time updates
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(async () => {
+        // Don't refresh if a modal is open
+        if (document.getElementById('modalOverlay').classList.contains('show')) return;
+        await loadAllData();
+        renderCurrentPage(document.getElementById('content'));
+    }, 30000);
+}
+
+function renderCurrentPage(content) {
+    switch (currentPage) {
         case 'dashboard': content.innerHTML = renderDashboard(); break;
         case 'bookings': content.innerHTML = renderBookings(); setupBookingActions(); break;
         case 'customers': content.innerHTML = renderCustomers(); setupCustomerActions(); break;
@@ -143,7 +143,6 @@ function loadSearchPage(query) {
     document.getElementById('pageTitle').textContent = 'Search';
     const content = document.getElementById('content');
     content.innerHTML = renderSearch();
-    // pre-fill the search box and run it
     const input = document.querySelector('.search-input-lg');
     if (input) {
         input.value = query;
@@ -151,8 +150,6 @@ function loadSearchPage(query) {
     }
     setupSearchActions();
 }
-
-// --- helpers ---
 
 function getPageTitle(page) {
     const titles = {
@@ -163,12 +160,10 @@ function getPageTitle(page) {
     return titles[page] || 'Dashboard';
 }
 
-// look up names by id
+// === Lookup Helpers ===
 function getCustomerName(id) { const c = customers.find(x => x.id === id); return c ? c.name : 'Unknown'; }
 function getPestName(id) { const p = pestTypes.find(x => x.id === id); return p ? p.name : 'Unknown'; }
 function getTechName(id) { const t = technicians.find(x => x.id === id); return t ? t.name : 'Unknown'; }
-
-// coloured badge for status/risk
 function statusBadge(status) {
     const cls = status.replace(/\s/g, '').toLowerCase();
     return '<span class="badge badge-' + cls + '">' + status + '</span>';
@@ -177,10 +172,8 @@ function riskBadge(level) {
     return '<span class="badge badge-' + level.toLowerCase() + '">' + level + '</span>';
 }
 
-// --- dashboard ---
-
+// === Dashboard ===
 function renderDashboard() {
-    // count bookings by status for the stat cards
     const active = bookings.filter(b => b.status === 'Confirmed' || b.status === 'In Progress').length;
     const completed = bookings.filter(b => b.status === 'Completed').length;
     const pending = bookings.filter(b => b.status === 'Pending').length;
@@ -198,7 +191,7 @@ function renderDashboard() {
     html += statCard('Treatments', treatments.length, 'Available products', 'info');
     html += '</div>';
 
-    // upcoming bookings table (filter out completed, sort by date)
+    // Upcoming bookings
     html += '<div class="section-card"><div class="section-header"><h2>Upcoming Bookings</h2></div>';
     html += '<div class="table-wrapper"><table><thead><tr>';
     html += '<th>ID</th><th>Date</th><th>Time</th><th>Customer</th><th>Pest</th><th>Technician</th><th>Status</th>';
@@ -214,7 +207,7 @@ function renderDashboard() {
     }
     html += '</tbody></table></div></div>';
 
-    // recent reports table
+    // Recent reports
     html += '<div class="section-card"><div class="section-header"><h2>Recent Inspection Reports</h2></div>';
     html += '<div class="table-wrapper"><table><thead><tr>';
     html += '<th>Report</th><th>Date</th><th>Findings</th><th>Follow-up</th>';
@@ -233,8 +226,7 @@ function statCard(label, value, subtitle, color) {
     return '<div class="stat-card ' + color + '"><div class="stat-value">' + value + '</div><div class="stat-label">' + label + '</div></div>';
 }
 
-// --- bookings page ---
-
+// === Bookings ===
 function renderBookings() {
     let html = '<div class="section-card"><div class="section-header"><h2>All Bookings</h2>';
     html += '<button class="btn btn-primary" onclick="openNewBookingModal()">+ New Booking</button>';
@@ -247,7 +239,11 @@ function renderBookings() {
         html += '<td>' + getPestName(b.pestTypeId) + '</td>';
         html += '<td>' + getTechName(b.technicianId) + '</td>';
         html += '<td>' + b.location + '</td>';
-        html += '<td>' + statusBadge(b.status) + '</td>';
+        html += '<td><select class="status-select status-' + b.status.replace(/\s/g,'').toLowerCase() + '" onchange="updateBookingStatus(' + b.id + ', this.value)">';
+        ['Pending','Confirmed','In Progress','Completed'].forEach(s => {
+            html += '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s + '</option>';
+        });
+        html += '</select></td>';
         html += '<td><div class="btn-group">';
         html += '<button class="btn btn-outline btn-sm" onclick="viewBooking(' + b.id + ')">View</button>';
         html += '<button class="btn btn-danger btn-sm" onclick="deleteBooking(' + b.id + ')">Delete</button>';
@@ -255,6 +251,21 @@ function renderBookings() {
     });
     html += '</tbody></table></div></div>';
     return html;
+}
+
+async function updateBookingStatus(id, newStatus) {
+    const b = bookings.find(x => x.id === id);
+    if (!b) return;
+    const updated = Object.assign({}, b, { status: newStatus });
+    await putJson('/api/bookings/' + id, updated);
+    b.status = newStatus;
+    // Update the select's styling class without full reload
+    const selects = document.querySelectorAll('.status-select');
+    selects.forEach(sel => {
+        if (sel.closest('tr') && sel.value === newStatus) {
+            sel.className = 'status-select status-' + newStatus.replace(/\s/g,'').toLowerCase();
+        }
+    });
 }
 
 function setupBookingActions() {}
@@ -277,7 +288,6 @@ function viewBooking(id) {
 }
 
 function openNewBookingModal() {
-    // build dropdown options from our data arrays
     let custOptions = customers.map(c => '<option value="' + c.id + '">' + c.name + '</option>').join('');
     let pestOptions = pestTypes.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
     let techOptions = technicians.map(t => '<option value="' + t.id + '">' + t.name + (t.available ? '' : ' (Unavailable)') + '</option>').join('');
@@ -321,13 +331,11 @@ function openNewBookingModal() {
 }
 
 async function deleteBooking(id) {
-    if (!confirm('Delete booking #' + id + '?')) return;
     await deleteReq('/api/bookings/' + id);
     loadPage('bookings');
 }
 
-// --- customers page ---
-
+// === Customers ===
 function renderCustomers() {
     let html = '<div class="section-card"><div class="section-header"><h2>All Customers</h2>';
     html += '<button class="btn btn-primary" onclick="openNewCustomerModal()">+ New Customer</button>';
@@ -401,13 +409,11 @@ function openNewCustomerModal() {
 }
 
 async function deleteCustomer(id) {
-    if (!confirm('Delete customer #' + id + '?')) return;
     await deleteReq('/api/customers/' + id);
     loadPage('customers');
 }
 
-// --- technicians page ---
-
+// === Technicians ===
 function renderTechnicians() {
     let html = '<div class="section-card"><div class="section-header"><h2>All Technicians</h2>';
     html += '<button class="btn btn-primary" onclick="openNewTechnicianModal()">+ New Technician</button>';
@@ -417,7 +423,7 @@ function renderTechnicians() {
     technicians.forEach(t => {
         html += '<tr><td>#' + t.id + '</td><td>' + t.name + '</td><td>' + t.specialisation + '</td>';
         html += '<td>' + t.phone + '</td><td>' + t.email + '</td>';
-        html += '<td>' + (t.available ? '<span class="badge badge-available">Available</span>' : '<span class="badge badge-unavailable">Unavailable</span>') + '</td>';
+        html += '<td><button class="btn btn-sm ' + (t.available ? 'btn-success' : 'btn-warning') + '" onclick="toggleAvailability(' + t.id + ',' + t.available + ')">' + (t.available ? 'Available' : 'Unavailable') + '</button></td>';
         html += '<td><button class="btn btn-danger btn-sm" onclick="deleteTechnician(' + t.id + ')">Delete</button></td>';
         html += '</tr>';
     });
@@ -455,13 +461,19 @@ function openNewTechnicianModal() {
 }
 
 async function deleteTechnician(id) {
-    if (!confirm('Delete technician #' + id + '?')) return;
     await deleteReq('/api/technicians/' + id);
     loadPage('technicians');
 }
 
-// --- pest types page ---
+async function toggleAvailability(id, current) {
+    const t = technicians.find(x => x.id === id);
+    if (!t) return;
+    const updated = Object.assign({}, t, { available: !current });
+    await putJson('/api/technicians/' + id, updated);
+    loadPage('technicians');
+}
 
+// === Pest Types ===
 function renderPests() {
     let html = '<div class="section-card"><div class="section-header"><h2>All Pest Types</h2>';
     html += '<button class="btn btn-primary" onclick="openNewPestModal()">+ New Pest Type</button>';
@@ -506,13 +518,11 @@ function openNewPestModal() {
 }
 
 async function deletePest(id) {
-    if (!confirm('Delete pest type #' + id + '?')) return;
     await deleteReq('/api/pesttypes/' + id);
     loadPage('pests');
 }
 
-// --- treatments page ---
-
+// === Treatments ===
 function renderTreatments() {
     let html = '<div class="section-card"><div class="section-header"><h2>All Treatments</h2></div>';
     html += '<div class="table-wrapper"><table><thead><tr>';
@@ -527,21 +537,59 @@ function renderTreatments() {
     return html;
 }
 
-// --- inspection reports page ---
-
+// === Reports ===
 function renderReports() {
-    let html = '<div class="section-card"><div class="section-header"><h2>All Inspection Reports</h2></div>';
-    html += '<div class="table-wrapper"><table><thead><tr>';
+    let html = '<div class="section-card"><div class="section-header"><h2>All Inspection Reports</h2>';
+    html += '<button class="btn btn-primary" onclick="openNewReportModal()">+ New Report</button>';
+    html += '</div><div class="table-wrapper"><table><thead><tr>';
     html += '<th>ID</th><th>Booking</th><th>Date</th><th>Findings</th><th>Follow-up</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     reports.forEach(r => {
         html += '<tr><td>#' + r.id + '</td><td>#' + r.bookingId + '</td><td>' + r.reportDate + '</td>';
         html += '<td>' + (r.findings.length > 50 ? r.findings.substring(0, 50) + '...' : r.findings) + '</td>';
-        html += '<td>' + (r.followUpNeeded ? '<span class="badge badge-high">Yes</span>' : '<span class="badge badge-low">No</span>') + '</td>';
+        html += '<td><button class="btn btn-sm ' + (r.followUpNeeded ? 'btn-danger' : 'btn-outline') + '" onclick="toggleFollowUp(' + r.id + ',' + r.followUpNeeded + ')">' + (r.followUpNeeded ? 'Yes - Needed' : 'No - Clear') + '</button></td>';
         html += '<td><button class="btn btn-outline btn-sm" onclick="viewReport(' + r.id + ')">View</button></td></tr>';
     });
+    if (reports.length === 0) {
+        html += '<tr><td colspan="6" class="empty-state"><div class="empty-state-text">No reports yet</div></td></tr>';
+    }
     html += '</tbody></table></div></div>';
     return html;
+}
+
+function openNewReportModal() {
+    const bookingOptions = bookings.map(b => '<option value="' + b.id + '">#' + b.id + ' - ' + getCustomerName(b.customerId) + ' (' + b.date + ')</option>').join('');
+    let html = '<form id="newReportForm">';
+    html += formSelect('Booking', 'rBookingId', bookingOptions);
+    html += formInput('Report Date', 'rDate', 'date');
+    html += formTextarea('Findings', 'rFindings');
+    html += formTextarea('Recommendations', 'rRecommendations');
+    html += formSelect('Follow-up Needed', 'rFollowUp', '<option value="false">No</option><option value="true">Yes</option>');
+    html += '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">Add Report</button>';
+    html += '</form>';
+    openModal('New Inspection Report', html);
+    document.getElementById('newReportForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            id: 0,
+            bookingId: parseInt(document.getElementById('rBookingId').value),
+            reportDate: document.getElementById('rDate').value,
+            findings: document.getElementById('rFindings').value,
+            recommendations: document.getElementById('rRecommendations').value,
+            followUpNeeded: document.getElementById('rFollowUp').value === 'true'
+        };
+        await postJson('/api/inspectionreports', data);
+        closeModal();
+        loadPage('reports');
+    });
+}
+
+async function toggleFollowUp(id, current) {
+    const r = reports.find(x => x.id === id);
+    if (!r) return;
+    const updated = Object.assign({}, r, { followUpNeeded: !current });
+    await putJson('/api/inspectionreports/' + id, updated);
+    loadPage('reports');
 }
 
 function viewReport(id) {
@@ -560,12 +608,11 @@ function viewReport(id) {
     openModal('Inspection Report #' + r.id, html);
 }
 
-// --- search page ---
-
+// === Search ===
 function renderSearch() {
     let html = '<input type="text" class="search-input-lg" id="searchInput" placeholder="Search customers, bookings, pests, technicians, treatments, reports..." />';
     html += '<div class="section-card" id="searchResults"><div class="section-body"><div class="empty-state">';
-    html += '<div class="empty-state-icon">&#128269;</div><div class="empty-state-text">Type to search across all data</div></div></div></div>';
+    html += '<div class="empty-state-text">Type to search across all data</div></div></div></div>';
     return html;
 }
 
@@ -573,7 +620,6 @@ function setupSearchActions() {
     const input = document.getElementById('searchInput');
     if (!input) return;
     let timer;
-    // debounce - wait 300ms after user stops typing before searching
     input.addEventListener('input', () => {
         clearTimeout(timer);
         timer = setTimeout(() => {
@@ -589,7 +635,7 @@ async function performSearch(query) {
     const data = await fetchJson('/api/search?q=' + encodeURIComponent(query));
     const container = document.getElementById('searchResults');
     if (!data || data.length === 0) {
-        container.innerHTML = '<div class="section-body"><div class="empty-state"><div class="empty-state-icon">&#128533;</div><div class="empty-state-text">No results found for "' + query + '"</div></div></div>';
+        container.innerHTML = '<div class="section-body"><div class="empty-state"><div class="empty-state-text">No results found for "' + query + '"</div></div></div>';
         return;
     }
     let html = '';
@@ -604,8 +650,7 @@ async function performSearch(query) {
     container.innerHTML = html;
 }
 
-// --- form builder helpers ---
-
+// === Form Helpers ===
 function formInput(label, id, type) {
     return '<div class="form-group"><label for="' + id + '">' + label + '</label><input type="' + type + '" id="' + id + '" required /></div>';
 }
@@ -622,8 +667,7 @@ function detailRow(label, value) {
     return '<div class="detail-label">' + label + '</div><div class="detail-value">' + value + '</div>';
 }
 
-// --- search result click handler ---
-
+// === Search Result Click Handler ===
 function openSearchResult(category, id) {
     switch (category) {
         case 'Customer':
@@ -646,8 +690,6 @@ function openSearchResult(category, id) {
             break;
     }
 }
-
-// --- detail views (opened from search results or tables) ---
 
 function viewTechnician(id) {
     const t = technicians.find(x => x.id === id);
@@ -705,8 +747,7 @@ function viewTreatment(id) {
     openModal(t.productName, html);
 }
 
-// --- ai chat widget ---
-
+// === AI Agent Chat Widget ===
 (function() {
     const fab = document.getElementById('chatFab');
     const widget = document.getElementById('chatWidget');
@@ -717,14 +758,12 @@ function viewTreatment(id) {
 
     if (!fab || !widget) return;
 
-    // open chat when clicking the floating button
     fab.addEventListener('click', () => {
         fab.classList.add('hidden');
         widget.classList.add('open');
         input.focus();
     });
 
-    // close chat
     closeBtn.addEventListener('click', () => {
         widget.classList.remove('open');
         fab.classList.remove('hidden');
@@ -790,7 +829,6 @@ function viewTreatment(id) {
     });
 
     function escapeHtml(text) {
-        // prevent html injection by using textContent
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

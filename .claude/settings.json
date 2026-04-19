@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(ASPNETCORE_URLS=\"http://localhost:5073\" dotnet run)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 17512)",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add a new technician called Mike Wilson, specialises in bird control, phone 07799887766, email mike@pestpro.com\"\"}')",
+      "Bash(curl -s http://localhost:5073/api/technicians)",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add a new customer called Sarah Jones, lives at 12 Elm Street, phone 07811223344, email sarah@gmail.com, commercial property\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add new pest type bedbugs, category insects, high risk, they are small parasitic insects that feed on human blood\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add a new treatment called BugBuster spray, method is surface spray application, for bedbugs, safety info: ventilate room for 2 hours after use\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"create a booking for Sarah Jones, bedbug problem, date 2025-04-15 at 10:30, location 12 Elm Street, assign James Wilson\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"book appointment for Sarah Jones, bedbug problem, date 2025-04-15 at 10:30, location 12 Elm Street, technician Rachel Green\"\"}')",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/technicians/5)",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/customers/6)",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/pesttypes/6)",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add a new technician called Dave Smith, rodent control specialist, phone 07111222333, email dave@pestpro.com\"\"}')",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f''''  ID:{t[\"\"id\"\"]} {t[\"\"name\"\"]} - {t[\"\"specialisation\"\"]}''''\\) for t in data]\")",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add new pest type called Silverfish, category Insects, low risk, small wingless insects found in damp areas\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add new customer Emma Watson, 99 Baker Street London, phone 07999888777, email emma@watson.com, residential\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add new treatment SilverGuard gel, method is gel bait application in cracks and crevices, for silverfish, safety: non-toxic to humans\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"create a booking for Emma Watson, silverfish problem, 2025-04-20 at 14:00, at 99 Baker Street London, assign Rachel Green\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"show me all technicians\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5073/api/agent -H \"Content-Type: application/json\" -d '{\"\"message\"\":\"\"add technician Bob\"\"}')",
+      "Bash(curl -s http://localhost:5073/api/bookings)",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/technicians/6)",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/technicians/7)",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/bookings/14)",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/bookings/15)",
+      "Bash(curl -s -X DELETE http://localhost:5073/api/customers/12)"
+    ]
+  }
+}

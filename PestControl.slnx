@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PestControl.Api/PestControl.Api.csproj" />
+  <Project Path="PestControl.Tests/PestControl.Tests.csproj" />
+</Solution>
