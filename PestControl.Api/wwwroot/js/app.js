@@ -331,7 +331,6 @@ function openNewBookingModal() {
 }
 
 async function deleteBooking(id) {
-    if (!confirm('Delete booking #' + id + '?')) return;
     await deleteReq('/api/bookings/' + id);
     loadPage('bookings');
 }
@@ -410,7 +409,6 @@ function openNewCustomerModal() {
 }
 
 async function deleteCustomer(id) {
-    if (!confirm('Delete customer #' + id + '?')) return;
     await deleteReq('/api/customers/' + id);
     loadPage('customers');
 }
@@ -463,7 +461,6 @@ function openNewTechnicianModal() {
 }
 
 async function deleteTechnician(id) {
-    if (!confirm('Delete technician #' + id + '?')) return;
     await deleteReq('/api/technicians/' + id);
     loadPage('technicians');
 }
@@ -521,7 +518,6 @@ function openNewPestModal() {
 }
 
 async function deletePest(id) {
-    if (!confirm('Delete pest type #' + id + '?')) return;
     await deleteReq('/api/pesttypes/' + id);
     loadPage('pests');
 }
@@ -616,7 +612,7 @@ function viewReport(id) {
 function renderSearch() {
     let html = '<input type="text" class="search-input-lg" id="searchInput" placeholder="Search customers, bookings, pests, technicians, treatments, reports..." />';
     html += '<div class="section-card" id="searchResults"><div class="section-body"><div class="empty-state">';
-    html += '<div class="empty-state-icon">&#128269;</div><div class="empty-state-text">Type to search across all data</div></div></div></div>';
+    html += '<div class="empty-state-text">Type to search across all data</div></div></div></div>';
     return html;
 }
 
@@ -639,7 +635,7 @@ async function performSearch(query) {
     const data = await fetchJson('/api/search?q=' + encodeURIComponent(query));
     const container = document.getElementById('searchResults');
     if (!data || data.length === 0) {
-        container.innerHTML = '<div class="section-body"><div class="empty-state"><div class="empty-state-icon">&#128533;</div><div class="empty-state-text">No results found for "' + query + '"</div></div></div>';
+        container.innerHTML = '<div class="section-body"><div class="empty-state"><div class="empty-state-text">No results found for "' + query + '"</div></div></div>';
         return;
     }
     let html = '';
