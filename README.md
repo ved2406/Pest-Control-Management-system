@@ -62,6 +62,21 @@ PestControl.Tests/     — MSTest unit tests
 1. Open SSMS and connect to your SQL Server instance
 2. Run the script in `PestControl.Api/Database/CreateDatabase.sql`
 
+### API Key Setup (AI Agent)
+The AI Agent requires an Anthropic API key. This is never committed to the repo.
+
+1. Copy the template file:
+   ```
+   PestControl.Api/appsettings.Development.template.json → PestControl.Api/appsettings.Development.json
+   ```
+2. Open `appsettings.Development.json` and replace `INSERT_API_KEY_HERE` with your actual Anthropic API key
+3. The file is gitignored so your key stays local
+
+Alternatively, set an environment variable:
+```bash
+ANTHROPIC_API_KEY=your_key_here
+```
+
 ### Running the App
 ```bash
 cd PestControl.Api
