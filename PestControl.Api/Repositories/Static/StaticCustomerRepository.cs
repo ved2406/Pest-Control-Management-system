@@ -6,10 +6,16 @@ using System.Linq;
 
 namespace PestControl.Api.Repositories.Static
 {
+    /// <summary>
+    /// A fake customer repository that stores everything in memory using a binary tree.
+    /// This is handy for testing — no database needed, just hardcoded test data.
+    /// </summary>
     public class StaticCustomerRepository : ICustomerRepository
     {
+        // Stores customers in a binary search tree (faster lookups than a plain list)
         private readonly BinarySearchTree<Customer> _tree;
 
+        // Set up with some test customers
         public StaticCustomerRepository()
         {
             _tree = new BinarySearchTree<Customer>();
@@ -25,22 +31,26 @@ namespace PestControl.Api.Repositories.Static
             _tree.Insert(10, new Customer(10, "Thames Warehouse Co", "200 Dock Road, London, E14 9TS", "07700900010", "contact@thameswarehouse.com", "Industrial"));
         }
 
+        // Hand back all the customers we've got stored
         public List<Customer> GetAll()
         {
             return _tree.GetAll();
         }
 
+        // Look up a customer by their ID
         public Customer GetById(int id)
         {
             return _tree.Search(id);
         }
 
+        // Add a new customer and give them an ID
         public void Add(Customer customer)
         {
             customer.Id = _tree.Count() > 0 ? _tree.MaxKey() + 1 : 1;
             _tree.Insert(customer.Id, customer);
         }
 
+        // Change a customer's info
         public void Update(Customer customer)
         {
             var existing = _tree.Search(customer.Id);
@@ -54,11 +64,13 @@ namespace PestControl.Api.Repositories.Static
             }
         }
 
+        // Remove a customer
         public void Delete(int id)
         {
             _tree.Delete(id);
         }
 
+        // Search through customers by name, address, email, phone, or property type
         public List<Customer> Search(string query)
         {
             var lower = query.ToLower();

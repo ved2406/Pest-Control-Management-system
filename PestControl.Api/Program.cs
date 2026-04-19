@@ -23,8 +23,9 @@ builder.Services.AddSingleton<PestControlAgent>(sp =>
         sp.GetRequiredService<ITechnicianRepository>(),
         sp.GetRequiredService<ITreatmentRepository>(),
         sp.GetRequiredService<IInspectionReportRepository>(),
-        Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
-            ?? throw new InvalidOperationException("ANTHROPIC_API_KEY environment variable is not set")
+        builder.Configuration["AnthropicApiKey"]
+            ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+            ?? throw new InvalidOperationException("AnthropicApiKey is not configured")
     ));
 
 builder.Services.AddControllers();

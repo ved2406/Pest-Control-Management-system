@@ -5,10 +5,16 @@ using System.Collections.Generic;
 
 namespace PestControl.Api.Repositories.Static
 {
+    /// <summary>
+    /// A fake pest type repository that stores everything in memory using a binary tree.
+    /// Good for testing — no database, just a catalog of pests we know how to treat.
+    /// </summary>
     public class StaticPestTypeRepository : IPestTypeRepository
     {
+        // Stores pest types in a binary search tree (faster lookups than a plain list)
         private readonly BinarySearchTree<PestType> _tree;
 
+        // Set up with test pest types — our catalog of common pests
         public StaticPestTypeRepository()
         {
             _tree = new BinarySearchTree<PestType>();
@@ -26,22 +32,26 @@ namespace PestControl.Api.Repositories.Static
             _tree.Insert(12, new PestType(12, "Carpet Beetle", "Insects", "Larvae feed on natural fibres causing damage to carpets and clothing.", "Low"));
         }
 
+        // Get all pest types in our catalog
         public List<PestType> GetAll()
         {
             return _tree.GetAll();
         }
 
+        // Look up a specific pest type by ID
         public PestType GetById(int id)
         {
             return _tree.Search(id);
         }
 
+        // Add a new pest type to catalog
         public void Add(PestType pestType)
         {
             pestType.Id = _tree.Count() > 0 ? _tree.MaxKey() + 1 : 1;
             _tree.Insert(pestType.Id, pestType);
         }
 
+        // Update a pest type's info
         public void Update(PestType pestType)
         {
             var existing = _tree.Search(pestType.Id);
@@ -54,11 +64,13 @@ namespace PestControl.Api.Repositories.Static
             }
         }
 
+        // Remove a pest type from catalog
         public void Delete(int id)
         {
             _tree.Delete(id);
         }
 
+        // Search pests by name, category, description, or risk level
         public List<PestType> Search(string query)
         {
             var lower = query.ToLower();

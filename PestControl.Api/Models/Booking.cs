@@ -1,44 +1,36 @@
 namespace PestControl.Api.Models
 {
     /// <summary>
-    /// Booking represents a scheduled pest control appointment.
-    /// Maps directly to the "Bookings" table in SQL Server.
-    ///
-    /// Notice that Booking does NOT store the customer's name or pest type's name directly.
-    /// Instead it stores their IDs (CustomerId, PestTypeId, TechnicianId).
-    /// These are FOREIGN KEYS — they link to the Id column in the Customers, PestTypes,
-    /// and Technicians tables respectively.
-    ///
-    /// This is called a Relational Database design — data is not duplicated,
-    /// it is referenced by ID. When we need names, we "join" or look up using the IDs.
+    /// A scheduled pest control appointment. We store references to the customer, pest type, 
+    /// and technician rather than their names to keep things DRY and avoid duplicating data.
     /// </summary>
     public class Booking
     {
-        // Auto-generated primary key
+        // Unique identifier for this booking
         public int Id { get; set; }
 
-        // Foreign key — links to Customers.Id
+        // Which customer booked this appointment
         public int CustomerId { get; set; }
 
-        // Foreign key — links to PestTypes.Id
+        // What type of pest we're dealing with
         public int PestTypeId { get; set; }
 
-        // Foreign key — links to Technicians.Id
+        // Which technician is assigned to handle this
         public int TechnicianId { get; set; }
 
-        // Date of the appointment e.g. "2025-06-15"
+        // When the appointment is scheduled
         public string Date { get; set; }
 
-        // Time of the appointment e.g. "09:00"
+        // What time they're coming
         public string Time { get; set; }
 
-        // Current status: "Pending", "Confirmed", "In Progress", or "Completed"
+        // Where things are at: "Pending", "Confirmed", "In Progress", or "Completed"
         public string Status { get; set; }
 
-        // Address where the job will take place
+        // Where the job needs to happen
         public string Location { get; set; }
 
-        // Any extra notes about the job
+        // Any special details or instructions
         public string Notes { get; set; }
 
         public Booking(int id, int customerId, int pestTypeId, int technicianId,

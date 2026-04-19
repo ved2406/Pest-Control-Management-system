@@ -5,10 +5,16 @@ using System.Collections.Generic;
 
 namespace PestControl.Api.Repositories.Static
 {
+    /// <summary>
+    /// A fake booking repository that stores everything in memory using a binary tree.
+    /// Perfect for testing — no database needed, just hardcoded bookings to work with.
+    /// </summary>
     public class StaticBookingRepository : IBookingRepository
     {
+        // Stores bookings in a binary search tree (faster lookups than a plain list)
         private readonly BinarySearchTree<Booking> _tree;
 
+        // Set up with some test bookings
         public StaticBookingRepository()
         {
             _tree = new BinarySearchTree<Booking>();
@@ -26,22 +32,26 @@ namespace PestControl.Api.Repositories.Static
             _tree.Insert(12, new Booking(12, 3, 10, 2, "2026-03-29", "09:00", "Pending", "88 Victoria Road, Birmingham, B1 1BB", "Pharaoh ant sighting in restaurant kitchen"));
         }
 
+        // Get all bookings we've got
         public List<Booking> GetAll()
         {
             return _tree.GetAll();
         }
 
+        // Look up a booking by its ID
         public Booking GetById(int id)
         {
             return _tree.Search(id);
         }
 
+        // Add a new booking and give it an ID
         public void Add(Booking booking)
         {
             booking.Id = _tree.Count() > 0 ? _tree.MaxKey() + 1 : 1;
             _tree.Insert(booking.Id, booking);
         }
 
+        // Update an existing booking's details
         public void Update(Booking booking)
         {
             var existing = _tree.Search(booking.Id);
@@ -58,11 +68,13 @@ namespace PestControl.Api.Repositories.Static
             }
         }
 
+        // Delete a booking
         public void Delete(int id)
         {
             _tree.Delete(id);
         }
 
+        // Search through bookings by date, time, status, location, or notes
         public List<Booking> Search(string query)
         {
             var lower = query.ToLower();
